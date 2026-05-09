@@ -221,5 +221,10 @@ __marimo__/
 
 # Extra files
 api-test.py
+<<<<<<< HEAD
 .vercel
 .env*.local
+=======
+worker.js
+kurovexa
+>>>>>>> 5ab518c89cbf7583e7f88c92439f6c73a771f7e5
