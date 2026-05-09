@@ -1,5 +1,5 @@
 /* ============================================
-   YumeZone - Dark Black & White Theme
+   Chanime - Dark Black & White Theme
    Modern, Premium Anime Streaming Design
    ============================================ */
 
@@ -72,6 +72,17 @@
     --max-width-2xl: 1800px;
     --navbar-height: 64px;
     --sidebar-width: 280px;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+/* Allow text selection only in specific areas (like descriptions) */
+.selectable-text {
+    user-select: text;
 }
 
 /* ============================================
