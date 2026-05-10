@@ -23,6 +23,10 @@ from ...models.watchlist import get_watchlist_entry
 
 watch_routes_bp = Blueprint("watch_routes", __name__)
 
+# Global cache for episode data to avoid session size limits (Flask session is max 4KB)
+# Key: fetch_id, Value: all_episodes data
+EPS_CACHE = {}
+
 
 def _get_preferred_lang():
     """Get the user's preferred language from cookie → session → default."""
@@ -208,7 +212,7 @@ def _parse_video_raw(raw):
         outro = raw.get("outro")
 
     print(
-        f"[_fetch_video_data] source_type={source_type}, video_link={str(video_link)[:80] if video_link else 'NONE'}"
+        f"[_fetch_video_data] source_type={source_type}, video_link={str(video_link)[:80] if video_link else 'NONE'}, intro={intro}, outro={outro}"
     )
 
     return {
@@ -366,9 +370,6 @@ def watch(anime_id, ep_number):
         current_app.logger.error(f"[Watch] Error getting anime info: {e}")
 
     # ── Fetch episodes list ──
-    # Prefer anime_id_clean (what's in the URL) so episode URLs stay consistent.
-    # Only use anilist_id if anime_id_clean is NOT numeric (i.e. it's a real slug),
-    # because Miruro only accepts numeric AniList IDs.
     try:
         fetch_id = (
             anime_id_clean
@@ -376,21 +377,28 @@ def watch(anime_id, ep_number):
             else (str(anilist_id) if anilist_id else anime_id_clean)
         )
         
-        # Try to get anime_slug for anidap provider discovery
-        # Use anime_id_clean if it looks like a slug (non-numeric), otherwise construct from title
         anime_slug = None
         if not anime_id_clean.isdigit():
             anime_slug = anime_id_clean
         elif anime and isinstance(anime, dict):
-            # Try to use title to construct slug
             title = anime.get("title") or anime.get("name")
             if title:
-                # Simple slug: lowercase, replace spaces with hyphens, remove non-alphanumeric
                 import re as regex
                 anime_slug = regex.sub(r'[^\w\s-]', '', title.lower()).replace(' ', '-').strip('-')
         
-        all_episodes = asyncio.run(current_app.ha_scraper.episodes(fetch_id, anime_slug))
-    except Exception:
+        # Use global EPS_CACHE to avoid session size limits
+        all_episodes = EPS_CACHE.get(str(fetch_id))
+        
+        if not all_episodes:
+            try:
+                all_episodes = asyncio.run(current_app.ha_scraper.episodes(fetch_id, anime_slug))
+                if all_episodes and all_episodes.get("providers_map"):
+                    EPS_CACHE[str(fetch_id)] = all_episodes
+            except Exception as e:
+                current_app.logger.error(f"[Watch] Error fetching episodes: {e}")
+                all_episodes = None
+    except Exception as e:
+        current_app.logger.error(f"[Watch] Cache/Fetch outer error: {e}")
         all_episodes = None
 
     providers_map = all_episodes.get("providers_map", {}) if all_episodes else {}
@@ -497,6 +505,7 @@ def watch(anime_id, ep_number):
             server_progress={},
             is_logged_in="username" in session and "_id" in session,
             provider_capabilities={},
+            provider_capabilities_map={},
             sorted_providers=[],
             mal_id=anime.get("malId") or anime.get("malID") if isinstance(anime, dict) else None,
             episodes_unavailable=True,
@@ -573,6 +582,7 @@ def watch(anime_id, ep_number):
     )
 
     from api.providers.miruro.episodes import PROVIDER_PRIORITY as _PP
+    from api.providers.miruro.episodes import PROVIDER_CAPABILITIES as _PC
 
     # Save last used server
     if selected_server:
@@ -746,9 +756,10 @@ def watch(anime_id, ep_number):
             server_progress=server_progress_dict,
             is_logged_in=is_logged_in,
             provider_capabilities=provider_capabilities,
+            provider_capabilities_map=_PC,
             sorted_providers=sorted(
-                (providers_map or {}).keys(),
-                key=lambda p: _PP.index(p) if p in _PP else len(_PP),
+                [p for p in (providers_map or {}).keys() if p in _PP],
+                key=lambda p: _PP.index(p),
             ),
             mal_id=mal_id,
         )
@@ -762,6 +773,31 @@ def watch(anime_id, ep_number):
 # ──────────────────────────────────────────────────────────────
 #  AJAX ENDPOINT: Switch server/language without page reload
 # ──────────────────────────────────────────────────────────────
+
+
+@watch_routes_bp.route("/api/watch/clear-cache", methods=["POST"])
+def clear_watch_cache():
+    """Clear the global cached providers_map for an anime."""
+    data = request.get_json() or {}
+    anime_id = data.get("anime_id")
+    if not anime_id:
+        return jsonify({"success": False, "error": "Missing anime_id"}), 400
+    
+    clean_id = str(anime_id).split("?", 1)[0]
+    
+    # Remove from global cache
+    removed = 0
+    if clean_id in EPS_CACHE:
+        del EPS_CACHE[clean_id]
+        removed += 1
+    
+    # Also clean up any session junk left over from previous broken implementation
+    keys = list(session.keys())
+    for k in keys:
+        if k.startswith("eps_cache_"):
+            session.pop(k, None)
+            
+    return jsonify({"success": True, "removed_count": removed})
 
 
 @watch_routes_bp.route("/api/watch/sources", methods=["POST"])
@@ -864,6 +900,38 @@ def get_watch_sources():
     video_data, provider_capabilities = _fetch_video_only(
         full_slug, lang, selected_server, anilist_id, providers_map
     )
+
+    # ── Intro/Outro Scavenging ───────────────────────────────────────
+    # If the current provider has no intro/outro, try to find them from
+    # other available providers to ensure global skip availability.
+    if not video_data.get("intro") and not video_data.get("outro") and anilist_id:
+        other_providers = [p for p in providers_map.keys() if p != selected_server]
+        # Prioritize providers likely to have metadata
+        other_providers.sort(key=lambda p: 0 if p == 'kiwi' or p.startswith('ax-') else 1)
+        
+        for other_p in other_providers[:3]: # try up to 3 other providers
+            other_ep_id = _find_episode_id_for_provider(providers_map, other_p, ep_number, lang)
+            if other_ep_id:
+                try:
+                    print(f"[Scavenge] Checking {other_p} for intro/outro metadata...")
+                    # Construct full slug for other provider
+                    if other_ep_id.startswith("watch/"):
+                        p_parts = other_ep_id.split("/")
+                        if len(p_parts) >= 5: p_parts[3] = lang
+                        other_full_slug = "/".join(p_parts)
+                    else:
+                        other_full_slug = other_ep_id
+
+                    # Fetch ONLY to get metadata (scraper cache will help)
+                    m_data = asyncio.run(current_app.ha_scraper.video(other_full_slug, lang, other_p, anilist_id))
+                    if m_data.get("intro") or m_data.get("outro"):
+                        video_data["intro"] = m_data.get("intro")
+                        video_data["outro"] = m_data.get("outro")
+                        print(f"[Scavenge] SUCCESS: Found intro/outro from {other_p}!")
+                        break
+                except Exception as e:
+                    print(f"[Scavenge] Failed to check {other_p}: {e}")
+    # ────────────────────────────────────────────────────────────────
 
     # Determine if this provider actually has working sources
     has_hls = bool(video_data.get("hls_sources"))
