@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-db_name = os.getenv("db", "name_of_your_database")
+db_name = os.getenv("db", "yume-userdata")
 users_collection_name = os.getenv("users_collection", "users")
 watchlist_collection_name = os.getenv("watchlist_collection", "watchlist")
-comments_collection_name = os.getenv("Chanime_comments", "comments")
-episode_reactions_collection_name = os.getenv("Chanime_episode_reactions", "episode_reactions")
+comments_collection_name = os.getenv("comments_collection", "comments")
+episode_reactions_collection_name = os.getenv("episode_reactions_collection", "episode_reactions")
 
 # Centralized MongoDB connection with optimizations
 mongodb_uri = os.getenv("MONGODB_URI")

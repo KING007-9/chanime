@@ -2,14 +2,6 @@
 <html lang="en">
 
 <head>
-<!-- PWA Manifest -->
-<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-
-<!-- Mobile Optimization -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="{% block meta_description %}Watch anime online for free in HD quality{% endblock %}">
@@ -17,25 +9,27 @@
     <!-- Open Graph / Social Media Embeds -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:title" content="{% block og_title %}Chanime - Watch Anime Online{% endblock %}">
+    <meta property="og:site_name" content="YumeZone">
+    <meta property="og:title" content="{% block og_title %}YumeZone - Watch Anime Online{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Watch the latest anime online for free in HD. Discover trending, popular, and new anime series.{% endblock %}">
-    <meta property="og:image" content="{{ url_for('static', filename='images/logos/no-bg-logo.png', _external=True) }}">
-    <meta property="og:image:alt" content="Chanime Logo">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logos/no-bg-logo.png', _external=True) }}{% endblock %}">
+    <meta property="og:image:alt" content="YumeZone Logo">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ self.title() }}">
     <meta name="twitter:description" content="{{ self.meta_description() }}">
-    <meta name="twitter:image" content="{{ url_for('static', filename='images/logos/no-bg-logo.png', _external=True) }}">
-    <meta name="twitter:image:alt" content="Chanime Logo">
+    <meta name="twitter:image" content="{{ self.og_image() }}">
+    <meta name="twitter:image:alt" content="YumeZone Logo">
 
-    <title>{% block title %}Chanime{% endblock %}</title>
-   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=2">
-<link rel="shortcut icon" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=2">
+    <title>{% block title %}YumeZone{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=3">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=3">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=3">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Preconnect for avatar images -->
     <link rel="preconnect" href="https://s4.anilist.co" crossorigin>
@@ -166,9 +160,9 @@
 
                 <!-- Brand -->
                 <a href="{{ url_for('home_routes.home') }}" class="navbar-brand">
-                    <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="Chanime Logo"
+                    <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="YumeZone Logo"
                         style="height: 40px;">
-                    <span>Chanime</span>
+                    <span>YumeZone</span>
                 </a>
             </div>
 
@@ -327,8 +321,8 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="{{ url_for('home_routes.home') }}" class="sidebar-brand">
-                <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="Chanime Logo">
-                <span>Chanime</span>
+                <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="YumeZone Logo">
+                <span>YumeZone</span>
             </a>
             <button class="sidebar-close" id="sidebar-close" aria-label="Close sidebar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -402,6 +396,14 @@
                 <span>Watchlist</span>
             </a>
             {% endif %}
+            <div class="sidebar-divider"></div>
+            <a href="https://github.com/OTAKUWeBer/YumeZone" target="_blank" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                <span>GitHub</span>
             </a>
         </nav>
         <div class="sidebar-footer">
@@ -456,16 +458,23 @@
                     <div class="footer-brand">
                         <a href="{{ url_for('home_routes.home') }}" class="navbar-brand">
                             <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}"
-                                alt="Chanime Logo" style="height: 40px;">
-                            <span>Chanime</span>
+                                alt="YumeZone Logo" style="height: 40px;">
+                            <span>YumeZone</span>
                         </a>
                         <p>Your gateway to the best anime and manga experience. Watch anime and read manga — all in one place.</p>
                         <div
                             style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border-color);">
+                            <p class="text-sm text-muted" style="margin-bottom: var(--space-sm);">Proudly Open Source.
+                                Join us to build the future of anime streaming.</p>
+                            <a href="https://github.com/OTAKUWeBer/YumeZone" target="_blank"
+                                class="btn btn-sm btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path
                                         d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
                                     </path>
                                 </svg>
+                                Star on GitHub
                             </a>
                         </div>
                     </div>
@@ -501,9 +510,17 @@
                         {% endif %}
                     </div>
                 </div>
+                <div class="footer-section">
+                    <h4 class="footer-title">Legal</h4>
+                    <div class="footer-links">
+                        <a href="/terms">Terms</a>
+                        <a href="/privacy">Privacy</a>
+                        <a href="/dmca">DMCA</a>
+                    </div>
+                </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; {{ now().year if now else 2026 }} Chanime. All rights reserved.</p>
+                <p>&copy; {{ now().year if now else 2026 }} YumeZone. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -535,7 +552,7 @@
                     <div id="login-error" class="text-error text-sm"
                         style="display: none; margin-bottom: var(--space-md);"></div>
                     <!-- Cloudflare Turnstile Widget -->
-                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAC9n4DRepjg2LacV" data-theme="dark"
+                    <div class="cf-turnstile" data-sitekey="{{ config.CF_SITE_KEY }}" data-theme="dark"
                         data-appearance="always" style="margin-bottom: var(--space-md);"></div>
                     <button type="submit" class="btn btn-primary w-full" id="login-btn">
                         <span id="login-btn-text">Sign In</span>
@@ -581,7 +598,7 @@
                     <div id="signup-error" class="text-error text-sm"
                         style="display: none; margin-bottom: var(--space-md);"></div>
                     <!-- Cloudflare Turnstile Widget -->
-                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAC9n4DRepjg2LacV" data-theme="dark"
+                    <div class="cf-turnstile" data-sitekey="{{ config.CF_SITE_KEY }}" data-theme="dark"
                         data-appearance="always" style="margin-bottom: var(--space-md);"></div>
                     <button type="submit" class="btn btn-primary w-full" id="signup-btn">
                         <span id="signup-btn-text">Create Account</span>
@@ -733,28 +750,54 @@
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
-            <h2 class="welcome-popup-title">Welcome to Chanime✧°📽✧</h2>
-
+            <h2 class="welcome-popup-title">What's New in YumeZone ✨</h2>
+            
             <div class="welcome-popup-card">
                 <div class="welcome-popup-card-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="welcome-icon comment-icon">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon comment-icon">
+                        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                        <path d="M2 2l7.586 7.586"></path>
+                        <circle cx="11" cy="11" r="2"></circle>
                     </svg>
-                    <h3 class="welcome-popup-card-title comment">Manga is Here!</h3>
+                    <h3 class="welcome-popup-card-title comment">Visual Overhaul</h3>
                 </div>
-                <p class="welcome-popup-card-text">We've added a brand new manga section. You can now read your favorite manga seamlessly on Chanime.</p>
+                <ul class="welcome-popup-list">
+                    <li>Sharper red theme replaced the old purple accents</li>
+                    <li>Improved landing page & watch page UI</li>
+                    <li>Better continue watching history cards</li>
+                    <li>Cleaner navigation buttons</li>
+                </ul>
             </div>
 
             <div class="welcome-popup-card">
                 <div class="welcome-popup-card-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        class="welcome-icon fix-icon">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon fix-icon">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                     </svg>
-                    <h3 class="welcome-popup-card-title update">New Video Player</h3>
+                    <h3 class="welcome-popup-card-title update">Player & Performance</h3>
                 </div>
-                <p class="welcome-popup-card-text">The video player has been changed! Most video sources are now working perfectly without looping. We'll be updating the watch page UI soon.</p>
+                <ul class="welcome-popup-list">
+                    <li>Faster page loads & video playback start</li>
+                    <li>Stabilized intro/outro skip system</li>
+                    <li>Optimized streaming performance</li>
+                </ul>
+            </div>
+
+            <div class="welcome-popup-card">
+                <div class="welcome-popup-card-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                    <h3 class="welcome-popup-card-title" style="color: var(--badge-sub);">Manga & Features</h3>
+                </div>
+                <ul class="welcome-popup-list">
+                    <li>Unified Manga section now live and stable</li>
+                    <li>Added full legal pages (Terms, Privacy, DMCA)</li>
+                    <li>Fixed AniList login & Discord invite link</li>
+                    <li>Updated global footer & navigation</li>
+                </ul>
             </div>
 
             <div class="welcome-popup-actions">

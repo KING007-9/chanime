@@ -1,6 +1,6 @@
 {% extends "shared/base.html" %}
 
-{% block title %}{{ anime.name or anime.title or 'Anime' }} - Chanime{% endblock %}
+{% block title %}{{ anime.name or anime.title or 'Anime' }} - YumeZone{% endblock %}
 {% block meta_description %}Watch {{ anime.name or anime.title }} online. {{ (anime.description or anime.synopsis or
 '')[:150] }}{% endblock %}
 {% block og_title %}{{ self.title() }}{% endblock %}
@@ -424,7 +424,7 @@
                     class="season-card {% if entry.isCurrent is defined and entry.isCurrent %}current{% endif %}"
                     title="{{ entry.name or entry.title }}">
                     {% if entry.isCurrent is defined and entry.isCurrent %}
-                    <div class="season-badge" style="background: var(--primary-color, #a855f7);">CURRENT</div>
+                    <div class="season-badge" style="background: var(--primary-color, #ff3e3e);">CURRENT</div>
                     {% else %}
                     <div class="season-badge"
                         style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1);">

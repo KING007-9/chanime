@@ -20,6 +20,7 @@ from flask import (
 from urllib.parse import parse_qs
 
 from ...models.watchlist import get_watchlist_entry
+from ...providers.video_utils import WORKER_BASE, proxy_video_sources
 
 watch_routes_bp = Blueprint("watch_routes", __name__)
 
@@ -246,6 +247,10 @@ def _fetch_video_only(
         video_data = _parse_video_raw(None)
 
     # Only report capabilities for the provider we actually fetched
+    # Apply backend proxying so the frontend doesn't need to know the WORKER_URL
+    video_data = proxy_video_sources(video_data, provider=server)
+    
+    # Recalculate capabilities based on proxied data
     capabilities = {}
     if server:
         has_hls = bool(video_data.get("hls_sources"))
@@ -256,6 +261,41 @@ def _fetch_video_only(
     print(f"[FetchVideo] Final outro: {video_data.get('outro')}")
     print(f"[FetchVideo] Provider {server}: hls={capabilities.get(server, {}).get('hls')}, embed={capabilities.get(server, {}).get('embed')}")
     return video_data, capabilities
+
+
+def _scavenge_intro_outro(video_data, providers_map, ep_number, lang, selected_server, anilist_id):
+    """
+    If the current provider has no intro/outro, try to find them from
+    other available providers to ensure global skip availability.
+    """
+    if not video_data.get("intro") and not video_data.get("outro") and anilist_id:
+        other_providers = [p for p in providers_map.keys() if p != selected_server]
+        # Prioritize providers likely to have metadata (Arc consistently provides this)
+        other_providers.sort(key=lambda p: 0 if p == 'arc' else (1 if p.startswith('ax-') else 2))
+        
+        for other_p in other_providers[:3]: # try up to 3 other providers
+            other_ep_id = _find_episode_id_for_provider(providers_map, other_p, ep_number, lang)
+            if other_ep_id:
+                try:
+                    print(f"[Scavenge] Checking {other_p} for intro/outro metadata...")
+                    # Construct full slug for other provider
+                    if other_ep_id.startswith("watch/"):
+                        p_parts = other_ep_id.split("/")
+                        if len(p_parts) >= 5: p_parts[3] = lang
+                        other_full_slug = "/".join(p_parts)
+                    else:
+                        other_full_slug = other_ep_id
+
+                    # Fetch ONLY to get metadata (scraper cache will help)
+                    m_data = asyncio.run(current_app.ha_scraper.video(other_full_slug, lang, other_p, anilist_id))
+                    if m_data.get("intro") or m_data.get("outro"):
+                        video_data["intro"] = m_data.get("intro")
+                        video_data["outro"] = m_data.get("outro")
+                        print(f"[Scavenge] SUCCESS: Found intro/outro from {other_p}!")
+                        break
+                except Exception as e:
+                    print(f"[Scavenge] Failed to check {other_p}: {e}")
+    return video_data
 
 
 # ──────────────────────────────────────────────────────────────
@@ -581,6 +621,11 @@ def watch(anime_id, ep_number):
         full_slug, lang, selected_server, anilist_id, providers_map
     )
 
+    # Scavenge for intro/outro from other providers if missing
+    video_data = _scavenge_intro_outro(
+        video_data, providers_map, ep_number, lang, selected_server, anilist_id
+    )
+
     from api.providers.miruro.episodes import PROVIDER_PRIORITY as _PP
     from api.providers.miruro.episodes import PROVIDER_CAPABILITIES as _PC
 
@@ -677,6 +722,7 @@ def watch(anime_id, ep_number):
     # can differ from the 1-based display numbering used in URLs.
     # The URL is the single source of truth for what the user is watching.
     episode_title = current_item.get("title")
+    episode_image = current_item.get("image")
     episode_number = ep_number  # ← always use URL value
     Episode = str(ep_number)  # ← always use URL value
 
@@ -735,6 +781,7 @@ def watch(anime_id, ep_number):
             Episode=Episode,
             episode_number=episode_number,
             episode_title=episode_title,
+            episode_image=episode_image,
             prev_episode_url=prev_episode_url,
             next_episode_url=next_episode_url,
             prev_episode_number=prev_episode_number,
@@ -758,7 +805,7 @@ def watch(anime_id, ep_number):
             provider_capabilities=provider_capabilities,
             provider_capabilities_map=_PC,
             sorted_providers=sorted(
-                [p for p in (providers_map or {}).keys() if p in _PP],
+                [p for p in (set((providers_map or {}).keys()) | ({"zoro"} if (mal_id or anilist_id) else set())) if p in _PP],
                 key=lambda p: _PP.index(p),
             ),
             mal_id=mal_id,
@@ -864,7 +911,7 @@ def get_watch_sources():
 
     # Resolve provider
     provider_name = provider or default_provider
-    if provider_name not in providers_map:
+    if provider_name not in providers_map and provider_name != "zoro":
         provider_name = default_provider
 
     # Find episode ID for this provider (uses float comparison now)
@@ -878,17 +925,17 @@ def get_watch_sources():
         if resolved:
             episode_id = resolved["episode_id"]
 
-    if not episode_id:
+    if not episode_id and provider_name != "zoro":
         return jsonify({"error": f"Episode {ep_number} not found"}), 404
 
     # Build full slug
-    if episode_id.startswith("watch/"):
+    if episode_id and episode_id.startswith("watch/"):
         parts = episode_id.split("/")
         if len(parts) >= 5:
             parts[3] = lang
         full_slug = "/".join(parts)
     else:
-        full_slug = episode_id
+        full_slug = episode_id or str(ep_number)
 
     # Determine server
     selected_server = provider_name
@@ -901,37 +948,10 @@ def get_watch_sources():
         full_slug, lang, selected_server, anilist_id, providers_map
     )
 
-    # ── Intro/Outro Scavenging ───────────────────────────────────────
-    # If the current provider has no intro/outro, try to find them from
-    # other available providers to ensure global skip availability.
-    if not video_data.get("intro") and not video_data.get("outro") and anilist_id:
-        other_providers = [p for p in providers_map.keys() if p != selected_server]
-        # Prioritize providers likely to have metadata
-        other_providers.sort(key=lambda p: 0 if p == 'kiwi' or p.startswith('ax-') else 1)
-        
-        for other_p in other_providers[:3]: # try up to 3 other providers
-            other_ep_id = _find_episode_id_for_provider(providers_map, other_p, ep_number, lang)
-            if other_ep_id:
-                try:
-                    print(f"[Scavenge] Checking {other_p} for intro/outro metadata...")
-                    # Construct full slug for other provider
-                    if other_ep_id.startswith("watch/"):
-                        p_parts = other_ep_id.split("/")
-                        if len(p_parts) >= 5: p_parts[3] = lang
-                        other_full_slug = "/".join(p_parts)
-                    else:
-                        other_full_slug = other_ep_id
-
-                    # Fetch ONLY to get metadata (scraper cache will help)
-                    m_data = asyncio.run(current_app.ha_scraper.video(other_full_slug, lang, other_p, anilist_id))
-                    if m_data.get("intro") or m_data.get("outro"):
-                        video_data["intro"] = m_data.get("intro")
-                        video_data["outro"] = m_data.get("outro")
-                        print(f"[Scavenge] SUCCESS: Found intro/outro from {other_p}!")
-                        break
-                except Exception as e:
-                    print(f"[Scavenge] Failed to check {other_p}: {e}")
-    # ────────────────────────────────────────────────────────────────
+    # Scavenge for intro/outro from other providers if missing
+    video_data = _scavenge_intro_outro(
+        video_data, providers_map, ep_number, lang, selected_server, anilist_id
+    )
 
     # Determine if this provider actually has working sources
     has_hls = bool(video_data.get("hls_sources"))
@@ -958,6 +978,9 @@ def get_watch_sources():
         "provider_capabilities": provider_capabilities,
         "available": has_sources,
     }
+    
+    # Apply backend proxying for AJAX response
+    response_data = proxy_video_sources(response_data, provider=provider_name)
 
     # Signal error to frontend when provider has no sources
     if not has_sources:

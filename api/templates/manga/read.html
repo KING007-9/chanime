@@ -1,9 +1,10 @@
 {% extends "shared/base.html" %}
 
-{% block title %}{{ chapter_title }} - {{ manga.title if manga else 'Read' }} | Chanime{% endblock %}
+{% block title %}{{ chapter_title }} - {{ manga.title if manga else 'Read' }} | YumeZone{% endblock %}
 {% block meta_description %}Read {{ chapter_title }} of {{ manga.title if manga else 'manga' }} online for free.{% endblock %}
 {% block og_title %}{{ self.title() }}{% endblock %}
 {% block og_description %}{{ self.meta_description() }}{% endblock %}
+{% block og_image %}{% if manga %}{{ (manga.poster or manga.cover)|manga_cover(manga_referer) }}{% endif %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/manga.css') }}">

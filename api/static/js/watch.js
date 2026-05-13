@@ -177,6 +177,7 @@ function attachPlayerControls(shell, vid) {
 
     const cfg = window.WATCH_CONFIG || {};
     let skipTarget = null;
+    let _isDragging = false;
 
     // Skip intro/outro
     vid.addEventListener('timeupdate', () => {
@@ -211,6 +212,8 @@ function attachPlayerControls(shell, vid) {
         muteBtn?.querySelector('.icon-muted')?.style.setProperty('display', m?'':'none');
         if(volSlider) volSlider.style.setProperty('--pct', (m?0:vid.volume*100)+'%');
     }
+    shell.syncMute = syncMute;
+
     volSlider?.addEventListener('input', ()=>{ vid.volume=parseFloat(volSlider.value); vid.muted=(volSlider.value==0); syncMute(); });
     muteBtn?.addEventListener('click', ()=>{ vid.muted=!vid.muted; if(!vid.muted&&vid.volume===0) vid.volume=0.5; if(volSlider) volSlider.value=vid.muted?0:vid.volume; syncMute(); });
 
@@ -218,7 +221,7 @@ function attachPlayerControls(shell, vid) {
     const resumeKey = `yumeResume_${cfg.animeId||''}_ep${cfg.episodeNumber||''}`;
     let _lastSave = 0;
     vid.addEventListener('timeupdate', ()=>{
-        if (!vid.duration) return;
+        if (!vid.duration || _isDragging) return;
         const pct = (vid.currentTime/vid.duration)*100;
         if (seekSlider) { seekSlider.value=pct; seekSlider.style.setProperty('--pct',pct+'%'); }
         if (playBar)    playBar.style.width = pct+'%';
@@ -239,6 +242,7 @@ function attachPlayerControls(shell, vid) {
         let buf=0; for(let i=0;i<vid.buffered.length;i++) if(vid.buffered.start(i)<=vid.currentTime) buf=vid.buffered.end(i);
         bufBar.style.width = ((buf/vid.duration)*100)+'%';
     });
+    vid.addEventListener('loadedmetadata', renderIntroOutroSegments);
     vid.addEventListener('canplay', ()=>{ 
         renderIntroOutroSegments();
         try {
@@ -259,7 +263,27 @@ function attachPlayerControls(shell, vid) {
         } 
     });
 
-    seekSlider?.addEventListener('input', ()=>{ if(vid.duration) vid.currentTime=(seekSlider.value/100)*vid.duration; seekSlider.style.setProperty('--pct',seekSlider.value+'%'); });
+    seekSlider?.addEventListener('input', ()=>{ 
+        if(!vid.duration) return;
+        const pct = parseFloat(seekSlider.value);
+        const ct = (pct/100) * vid.duration;
+        
+        // Immediate UI feedback
+        seekSlider.style.setProperty('--pct', pct + '%');
+        if (playBar) playBar.style.width = pct + '%';
+        if (timeEl)  timeEl.textContent  = `${fmt(ct)} / ${fmt(vid.duration)}`;
+        
+        // Scrub video
+        vid.currentTime = ct;
+    });
+
+    const startDrag = () => { _isDragging = true; };
+    const endDrag   = () => { _isDragging = false; };
+    seekSlider?.addEventListener('mousedown',  startDrag);
+    seekSlider?.addEventListener('touchstart', startDrag);
+    seekSlider?.addEventListener('mouseup',    endDrag);
+    seekSlider?.addEventListener('touchend',   endDrag);
+    seekSlider?.addEventListener('change',     endDrag); // Backup
     progWrap?.addEventListener('mousemove', e=>{
         if(!vid.duration||!tooltip) return;
         const r=progWrap.getBoundingClientRect(), f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
@@ -271,71 +295,32 @@ function attachPlayerControls(shell, vid) {
     back10?.addEventListener('click', e=>{ e.stopPropagation(); vid.currentTime=Math.max(0,vid.currentTime-10); });
     fwd10?.addEventListener('click',  e=>{ e.stopPropagation(); vid.currentTime=Math.min(vid.duration||0,vid.currentTime+10); });
 
-    // ── Keyboard Shortcuts ──
-    document.addEventListener('keydown', function(e) {
-        // Ignore if user is typing in an input/textarea (like search or comments)
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-        
-        switch (e.key.toLowerCase()) {
-            case ' ':
-            case 'k':
-                e.preventDefault();
-                vid.paused ? vid.play() : vid.pause();
-                showCtrls();
-                break;
-            case 'f':
-                e.preventDefault();
-                fsBtn?.click();
-                break;
-            case 'arrowright':
-                e.preventDefault();
-                vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10);
-                showCtrls();
-                break;
-            case 'arrowleft':
-                e.preventDefault();
-                vid.currentTime = Math.max(0, vid.currentTime - 10);
-                showCtrls();
-                break;
-            case 'arrowup':
-                e.preventDefault();
-                vid.volume = Math.min(1, vid.volume + 0.05);
-                vid.muted = (vid.volume === 0);
-                if (volSlider) volSlider.value = vid.volume;
-                syncMute();
-                showCtrls();
-                break;
-            case 'arrowdown':
-                e.preventDefault();
-                vid.volume = Math.max(0, vid.volume - 0.05);
-                vid.muted = (vid.volume === 0);
-                if (volSlider) volSlider.value = vid.volume;
-                syncMute();
-                showCtrls();
-                break;
-            case 'm':
-                e.preventDefault();
-                muteBtn?.click();
-                showCtrls();
-                break;
-        }
-    });
+    // Keyboard shortcuts handled globally at the end of file to prevent duplicates
+
 
     // ── Right-click to skip 10s ──
     shell.addEventListener('contextmenu', function(e) {
         e.preventDefault(); // Prevent default browser context menu
-        vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10);
-        showCtrls();
+        // Only skip on desktop; long-press on mobile shouldn't skip (only double-tap)
+        if (navigator.maxTouchPoints === 0) {
+            vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10);
+            showCtrls();
+        }
     });
 
     // Controls auto-hide
+    let _lastTouchTime = 0;
+    shell.addEventListener('touchstart', ()=>{ _lastTouchTime = Date.now(); }, {passive: true});
+
     function showCtrls() {
         controls?.classList.remove('yz-hidden'); shell.style.cursor='';
         clearTimeout(_ctrlTimer);
         if (!vid.paused) _ctrlTimer = setTimeout(()=>{ controls?.classList.add('yz-hidden'); shell.style.cursor='none'; if(settPanel) settPanel.style.display='none'; }, 3000);
     }
-    shell.addEventListener('mousemove', showCtrls);
-    shell.addEventListener('mouseenter', showCtrls);
+    shell.showCtrls = showCtrls;
+
+    shell.addEventListener('mousemove', ()=>{ if (Date.now() - _lastTouchTime < 500) return; showCtrls(); });
+    shell.addEventListener('mouseenter', ()=>{ if (Date.now() - _lastTouchTime < 500) return; showCtrls(); });
 
     // ── Mobile double-tap seek & tap-to-toggle ──
     var _isMobile = navigator.maxTouchPoints > 0;
@@ -416,15 +401,8 @@ function attachPlayerControls(shell, vid) {
         }
     });
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', e=>{
-        if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-        if (e.key===' '||e.key==='k') { e.preventDefault(); vid.paused?vid.play():vid.pause(); }
-        if (e.key==='ArrowRight') { e.preventDefault(); vid.currentTime=Math.min(vid.duration||0,vid.currentTime+5); }
-        if (e.key==='ArrowLeft')  { e.preventDefault(); vid.currentTime=Math.max(0,vid.currentTime-5); }
-        if (e.key==='m')          { vid.muted=!vid.muted; syncMute(); }
-        if (e.key==='f')          { fsBtn?.click(); }
-    });
+    // Keyboard shortcuts handled globally
+
 
     syncPlay(); syncMute();
     if (volSlider) { volSlider.value=vid.muted?0:vid.volume; volSlider.style.setProperty('--pct',(vid.muted?0:vid.volume*100)+'%'); }
@@ -609,15 +587,9 @@ function showNoSourcesMessage() {
     if (pa) pa.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d0d0d;gap:12px"><span style="color:#ef4444;font-size:.95rem;font-weight:600">No streams available</span><span style="color:#64748b;font-size:.82rem">Try another server or check back later.</span></div>';
 }
 
-// ── Proxy Wrapping ────────────────────────────────────────────────
-const WORKER_BASE = 'https://kiwi-hls-proxy.yumeanime.workers.dev/p/';
+// ── Proxy Wrapping (Now handled by backend) ──────────────────────
 function proxyUrl(url, referer) {
-    if (!url || url.startsWith('blob:')) return url;
-    if (url.startsWith(WORKER_BASE) || url.startsWith('https://kiwi-hls-proxy.yumeanime.workers.dev/proxy')) return url;
-    var ref = referer || '';
-    var payload = url + '\0' + ref;
-    var b64u = btoa(unescape(encodeURIComponent(payload))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    return WORKER_BASE + b64u;
+    return url;
 }
 
 // ── applyVideoSources (replaces old Vidstack version) ────────────
@@ -744,6 +716,7 @@ function saveWatchHistory(ct, dur) {
         localStorage.setItem(key, JSON.stringify({
             animeId: cfg.animeId, epNum: cfg.episodeNumber,
             animeName: cfg.animeName || '', poster: cfg.poster || '',
+            episodeImage: cfg.episodeImage || '',
             episodeTitle: cfg.episodeTitle || '',
             timestamp: ct, duration: dur, completed: dur > 0 && (ct/dur) >= 0.9,
             watchedAt: Date.now()
@@ -770,7 +743,77 @@ function markEpisodeWatched() {
     doUpdate(1);
 }
 
-// ── Episode sidebar ───────────────────────────────────────────────
+// ── Global Keyboard Shortcuts ─────────────────────────────────────
+(function() {
+    let lastKeyTime = 0;
+    document.addEventListener('keydown', function(e) {
+        // Ignore if user is typing in an input/textarea/select
+        const active = document.activeElement;
+        if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return;
+        if (active && active.isContentEditable) return;
+
+        const vid = document.getElementById('yz-video');
+        if (!vid) return;
+        const shell = vid.closest('.yz-player');
+        if (!shell) return;
+
+        const key = e.key.toLowerCase();
+        
+        // Helper to show controls
+        const show = () => { if (shell.showCtrls) shell.showCtrls(); };
+
+        switch (key) {
+            case ' ':
+            case 'k':
+                e.preventDefault();
+                vid.paused ? vid.play() : vid.pause();
+                show();
+                break;
+            case 'f':
+                e.preventDefault();
+                const fsBtn = shell.querySelector('#yz-fs-btn');
+                if (fsBtn) fsBtn.click();
+                break;
+            case 'arrowright':
+            case 'l':
+                e.preventDefault();
+                vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + (key === 'l' ? 10 : 5));
+                show();
+                break;
+            case 'arrowleft':
+            case 'j':
+                e.preventDefault();
+                vid.currentTime = Math.max(0, vid.currentTime - (key === 'j' ? 10 : 5));
+                show();
+                break;
+            case 'arrowup':
+                e.preventDefault();
+                vid.volume = Math.min(1, vid.volume + 0.05);
+                vid.muted = (vid.volume === 0);
+                if (shell.syncMute) shell.syncMute();
+                const volSlider = shell.querySelector('#yz-vol');
+                if (volSlider) volSlider.value = vid.volume;
+                show();
+                break;
+            case 'arrowdown':
+                e.preventDefault();
+                vid.volume = Math.max(0, vid.volume - 0.05);
+                vid.muted = (vid.volume === 0);
+                if (shell.syncMute) shell.syncMute();
+                const volSlider2 = shell.querySelector('#yz-vol');
+                if (volSlider2) volSlider2.value = vid.volume;
+                show();
+                break;
+            case 'm':
+                e.preventDefault();
+                vid.muted = !vid.muted;
+                if (shell.syncMute) shell.syncMute();
+                show();
+                break;
+        }
+    });
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     var viewList = document.getElementById('view-list-btn');
     var viewGrid = document.getElementById('view-grid-btn');

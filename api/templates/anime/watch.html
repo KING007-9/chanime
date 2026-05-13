@@ -1,10 +1,10 @@
 {% extends "shared/base.html" %}
 
-{% block title %}{{ anime_title }}, Episode {{ Episode }} - Chanime{% endblock %}
+{% block title %}{{ anime_title }}, Episode {{ Episode }} - YumeZone{% endblock %}
 {% block meta_description %}Watch {{ anime_title }} Episode {{ Episode }} online in HD quality.{% endblock %}
 {% block og_title %}{{ self.title() }}{% endblock %}
 {% block og_description %}{{ self.meta_description() }}{% endblock %}
-{% block og_image %}{% if anime %}{{ anime.banner or anime.poster or anime.image }}{% endif %}{% endblock %}
+{% block og_image %}{{ episode_image or (anime.banner or anime.poster or anime.image if anime else '') }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/watch.css') }}">
@@ -724,6 +724,7 @@
         sourceType: '{{ source_type or "hls" }}',
         animeName: {{ (anime.name or anime.title or anime_title or '') | tojson | safe }},
         poster: {{ (anime.get('coverImage') or anime.get('poster') or anime.get('image') or '') | tojson | safe }},
+        episodeImage: {{ (episode_image or '') | tojson | safe }},
         episodeTitle: {{ (episode_title or '') | tojson | safe }}
     };
 </script>

@@ -43,7 +43,7 @@ def verify_turnstile(token, secret, remoteip=None):
             timeout=10,
             headers={
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'Chanime/1.0'
+                'User-Agent': 'YumeZone/1.0'
             }
         )
         

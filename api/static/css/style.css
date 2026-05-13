@@ -1,5 +1,5 @@
 /* ============================================
-   Chanime - Dark Black & White Theme
+   YumeZone - Dark Black & White Theme
    Modern, Premium Anime Streaming Design
    ============================================ */
 
@@ -31,7 +31,7 @@
     --info: #3b82f6;
 
     /* Badge Colors */
-    --badge-sub: #a855f7;
+    --badge-sub: #ff3e3e;
     --badge-dub: #3b82f6;
 
     /* Spacing */
@@ -72,17 +72,6 @@
     --max-width-2xl: 1800px;
     --navbar-height: 64px;
     --sidebar-width: 280px;
-}
-
-* {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    user-select: none;
-}
-
-/* Allow text selection only in specific areas (like descriptions) */
-.selectable-text {
-    user-select: text;
 }
 
 /* ============================================
@@ -302,7 +291,9 @@ h6 {
     gap: var(--space-sm);
     font-size: 1.5rem;
     font-weight: 700;
-    letter-spacing: -0.03em;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -1px;
+    text-transform: uppercase;
     flex-shrink: 0;
 }
 
@@ -562,7 +553,9 @@ h6 {
     gap: var(--space-sm);
     font-size: 1.25rem;
     font-weight: 700;
-    letter-spacing: -0.03em;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -1px;
+    text-transform: uppercase;
     color: var(--text-primary);
 }
 
@@ -618,23 +611,23 @@ h6 {
     transform: translateY(-50%);
     width: 3px;
     height: 0;
-    background: #a855f7;
+    background: #ff3e3e;
     border-radius: 0 4px 4px 0;
     transition: height 0.2s ease;
 }
 
 .sidebar-link:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    color: #ff3e3e;
+    background: rgba(255, 62, 62, 0.05);
 }
 
 .sidebar-link:hover svg {
-    color: var(--text-primary);
+    color: #ff3e3e;
 }
 
 .sidebar-link.active {
-    color: #a855f7;
-    background: rgba(168, 85, 247, 0.1);
+    color: #ff3e3e;
+    background: rgba(255, 62, 62, 0.1);
     font-weight: 600;
 }
 
@@ -643,7 +636,7 @@ h6 {
 }
 
 .sidebar-link.active svg {
-    color: #a855f7;
+    color: #ff3e3e;
 }
 
 .sidebar-link svg {
@@ -832,13 +825,14 @@ h6 {
 }
 
 .btn-primary {
-    background: var(--text-primary);
-    color: var(--bg-primary);
+    background: var(--badge-sub);
+    color: #fff;
 }
 
 .btn-primary:hover {
-    background: var(--text-secondary);
-    transform: translateY(-1px);
+    background: #e63535;
+    transform: translateY(-1.5px);
+    box-shadow: 0 0 20px rgba(255, 62, 62, 0.4);
 }
 
 .btn-secondary {
@@ -870,6 +864,12 @@ h6 {
 .btn-sm {
     padding: var(--space-xs) var(--space-md);
     font-size: 0.8rem;
+}
+
+.btn-xs {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    gap: 4px;
 }
 
 .btn-lg {
@@ -983,9 +983,9 @@ h6 {
 }
 
 .tab-btn.active {
-    background: rgba(168, 85, 247, 0.15);
-    border-color: rgba(168, 85, 247, 0.3);
-    color: #a855f7;
+    background: rgba(255, 62, 62, 0.15);
+    border-color: rgba(255, 62, 62, 0.3);
+    color: #ff3e3e;
 }
 
 .tab-content {
@@ -1188,12 +1188,202 @@ h6 {
     opacity: 1;
 }
 
+.play-icon-circle {
+    width: 40px;
+    height: 40px;
+    background: #fff;
+    color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.anime-card:hover .play-icon-circle {
+    transform: translateY(0) scale(1.1);
+    background: var(--badge-sub);
+    color: #fff;
+}
+
 .anime-card-badges {
     position: absolute;
     top: var(--space-sm);
     left: var(--space-sm);
     display: flex;
     gap: var(--space-xs);
+    z-index: 2;
+}
+
+/* ── History Cards Redesign ─────────────────────────────────── */
+.history-card {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.history-card:hover {
+    transform: none !important;
+}
+
+.history-card-poster-link {
+    display: block;
+    position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.history-card:hover .history-card-poster-link {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.history-card-badges {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 2;
+}
+
+.history-badge {
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(8px);
+}
+
+.history-badge.ep {
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-badge.completed {
+    background: rgba(34, 197, 94, 0.85);
+    color: #fff;
+}
+
+.history-remove-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-card:hover .history-remove-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.history-remove-btn:hover {
+    background: #ef4444;
+    transform: scale(1.1) !important;
+}
+
+.history-progress-wrap {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.history-progress-bar {
+    height: 100%;
+    background: var(--badge-sub);
+    box-shadow: 0 0 8px var(--badge-sub);
+}
+
+.history-card-details {
+    padding: 12px 4px;
+}
+
+.history-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.history-card-anime {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.history-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-card-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.welcome-popup-card-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.welcome-popup-list {
+    margin: 10px 0 0 18px;
+    padding: 0;
+    list-style: disc;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.welcome-popup-list li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.history-card-duration {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 .badge {
@@ -1413,9 +1603,9 @@ h6 {
     align-items: center;
     gap: var(--space-sm);
     padding: var(--space-xs) var(--space-md);
-    background: rgba(var(--primary-color-rgb, 168, 85, 247), 0.2);
+    background: rgba(var(--primary-color-rgb, 255, 62, 62), 0.2);
     color: var(--primary-color);
-    border: 1px solid rgba(var(--primary-color-rgb, 168, 85, 247), 0.3);
+    border: 1px solid rgba(var(--primary-color-rgb, 255, 62, 62), 0.3);
     border-radius: var(--radius-full);
     font-size: 0.85rem;
     font-weight: 600;
@@ -1484,8 +1674,8 @@ h6 {
 }
 
 .spotlight-genre-tag:hover {
-    background: rgba(var(--primary-color-rgb, 168, 85, 247), 0.25);
-    border-color: rgba(var(--primary-color-rgb, 168, 85, 247), 0.5);
+    background: rgba(var(--primary-color-rgb, 255, 62, 62), 0.25);
+    border-color: rgba(var(--primary-color-rgb, 255, 62, 62), 0.5);
 }
 
 .spotlight-meta {
@@ -2195,7 +2385,7 @@ h6 {
 .stat-card-value {
     font-size: 1.75rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #02a9ff, #8b5cf6);
+    background: linear-gradient(135deg, #ef4444, #ff3e3e);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -2401,7 +2591,7 @@ h6 {
 
 .sync-bar {
     height: 100%;
-    background: linear-gradient(90deg, #02a9ff, #8b5cf6);
+    background: linear-gradient(90deg, #ef4444, #ff3e3e);
     border-radius: 2px;
     transition: width 0.3s ease;
 }
