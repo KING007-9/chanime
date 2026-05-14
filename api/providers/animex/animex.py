@@ -486,25 +486,6 @@ class AnimexScraper:
                     }
                 )
 
-<<<<<<< HEAD
-    #     primary_url = hls_sources[0]["url"]
-    #     return {
-    #         "sources": [{"file": s["url"], "url": s["url"], "quality": s["quality"]} for s in hls_sources],
-    #         "tracks": tracks,
-    #         "intro": None,
-    #         "outro": None,
-    #         "headers": upstream_headers or {},
-    #         "provider": "animex",
-    #         "download": "",
-    #         "embed_sources": [],
-    #         "hls_sources": hls_sources,
-    #         "source_type": "hls",
-    #         "available_qualities": available_qualities,
-    #         "video_link": primary_url,
-    #         "source_provider": "animex",
-    #         "selected_server_id": provider_id,
-    #     }
-=======
         primary_url = hls_sources[0]["url"]
         print(f"[AnimeX] get_sources: anilist_id={anilist_id} ep={ep_num} server={provider_id} -> intro={raw.get('intro')}, outro={raw.get('outro')}")
         return {
@@ -523,4 +504,3 @@ class AnimexScraper:
             "source_provider": "animex",
             "selected_server_id": provider_id,
         }
->>>>>>> 17af4653f575f0aebb58ad8e43870676059b8804

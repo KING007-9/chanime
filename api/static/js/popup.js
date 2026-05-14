@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentUpdateVersion = 'v4'; 
     
     // Check user preferences
-    const neverShowAgain = localStorage.getItem('yumezone_popup_never_show') === 'true';
-    const dismissedCurrentVersion = localStorage.getItem(`yumezone_popup_dismissed_${currentUpdateVersion}`) === 'true';
+    const neverShowAgain = localStorage.getItem('chanime_popup_never_show') === 'true';
+    const dismissedCurrentVersion = localStorage.getItem(`chanime_popup_dismissed_${currentUpdateVersion}`) === 'true';
     
     if (!neverShowAgain && !dismissedCurrentVersion && popupOverlay) {
         // Show after a small delay for smooth intro
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const dismissForVersion = () => {
         // Marks THIS SPECIFIC update version as viewed/closed
-        localStorage.setItem(`yumezone_popup_dismissed_${currentUpdateVersion}`, 'true');
+        localStorage.setItem(`chanime_popup_dismissed_${currentUpdateVersion}`, 'true');
         closePopup();
     };
     
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // "Do not show again" will permanently mute all future update popups
     if (dontShowBtn) {
         dontShowBtn.addEventListener('click', () => {
-            localStorage.setItem('yumezone_popup_never_show', 'true');
+            localStorage.setItem('chanime_popup_never_show', 'true');
             closePopup();
         });
     }

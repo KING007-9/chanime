@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
- *  YumeZone Watch — Custom HLS.js Player (YumeZone architecture)
+ *  Chanime Watch — Custom HLS.js Player (Chanime architecture)
  *  Fixes: segment looping · infinite buffer · retry loops
  * ═══════════════════════════════════════════════════════════════ */
 
@@ -23,7 +23,7 @@ let globalTimestamps = { intro: null, outro: null };
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 // ── Helpers ──────────────────────────────────────────────────────
-const YumeZone = {
+const Chanime = {
     watch: async (provider, animeId, language, epNumber) => {
         const r = await fetch('/api/watch/sources', {
             method: 'POST',
@@ -628,7 +628,7 @@ function fetchAndLoadSources(isAutoFallback) {
     _isFallbackInProgress = true;
     if (ss) ss.classList.add('loading');
 
-    YumeZone.watch(curProv, cfg.animeId, state.language || cfg.language, cfg.episodeNumber)
+    Chanime.watch(curProv, cfg.animeId, state.language || cfg.language, cfg.episodeNumber)
     .then(function(data) {
         const hasHls   = (data.hls_sources   || []).length > 0;
         const hasEmbed = (data.embed_sources || []).length > 0;
