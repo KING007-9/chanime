@@ -30,6 +30,16 @@
     padding: 0 40px;
 }
 
+/* Hide global components for landing */
+.navbar, .sidebar-toggle {
+    display: none !important;
+}
+
+.main-content {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
 /* Header */
 .lp-header {
     height: 100px;
@@ -40,10 +50,32 @@
 }
 
 .lp-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-size: 1.8rem;
     font-weight: 700;
     letter-spacing: -1px;
     text-transform: uppercase;
+}
+
+.lp-logo img {
+    height: 48px;
+    width: auto;
+}
+
+.lp-logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.lp-logo-sub {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: var(--lp-accent);
+    margin-top: 4px;
+    font-weight: 500;
 }
 
 .lp-nav {
@@ -209,6 +241,146 @@
         font-size: 10rem;
     }
 }
+
+@media (max-width: 768px) {
+    .lp-container {
+        padding: 0 16px;
+    }
+    
+    .lp-header {
+        height: 80px;
+    }
+    
+    .lp-nav {
+        gap: 15px;
+    }
+    
+    .lp-nav a:not(:first-child):not(:last-child) {
+        display: none; /* Keep only Anime and Discord/GitHub on small tablets */
+    }
+
+    .lp-hero {
+        padding: 80px 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .lp-container {
+        padding: 0 16px;
+    }
+    
+    .lp-header {
+        height: 80px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .lp-logo {
+        font-size: 1.2rem;
+        gap: 8px;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .lp-logo img {
+        height: 40px;
+    }
+
+    .lp-logo-text span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .lp-nav {
+        display: flex !important;
+        gap: 16px !important;
+        flex-shrink: 0;
+    }
+    
+    .lp-nav a {
+        display: none;
+        background: none !important;
+        color: #fff !important;
+        padding: 0 !important;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: normal;
+    }
+
+    .lp-nav a:nth-child(1),
+    .lp-nav a:nth-child(2) {
+        display: block !important;
+    }
+
+    .lp-nav a:active {
+        transform: scale(0.95);
+    }
+
+    .lp-hero {
+        padding: 48px 0 60px;
+    }
+
+    .lp-title {
+        font-size: 3.2rem;
+        letter-spacing: -2px;
+        margin-bottom: 24px;
+        text-align: center;
+    }
+    
+    .lp-hero-jp {
+        font-size: 6rem;
+        top: 30px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .lp-description {
+        font-size: 1.1rem;
+        text-align: center;
+        margin: 0 auto 32px;
+    }
+    
+    .lp-hero-grid {
+        text-align: center;
+        gap: 40px;
+    }
+    
+    .lp-cta-group {
+        align-items: center;
+    }
+    
+    .lp-main-btn {
+        width: 100%;
+        padding: 18px 24px;
+        font-size: 1.1rem;
+    }
+    
+    .lp-feature-item {
+        padding: 40px 24px;
+    }
+    
+    .lp-feature-title {
+        font-size: 1.6rem;
+    }
+    
+    .lp-footer {
+        flex-direction: column;
+        gap: 32px;
+        text-align: center;
+        padding: 60px 0;
+    }
+    
+    .lp-footer .lp-nav {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
 </style>
 {% endblock %}
 
@@ -217,7 +389,12 @@
     <div class="lp-container">
         <!-- Header -->
         <header class="lp-header">
-            <div class="lp-logo">YumeZone</div>
+            <div class="lp-logo">
+                <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="YumeZone Logo">
+                <div class="lp-logo-text">
+                    <span>YumeZone</span>
+                </div>
+            </div>
             <nav class="lp-nav">
                 <a href="/home">Anime</a>
                 <a href="/manga">Manga</a>
@@ -271,7 +448,12 @@
 
         <!-- Footer -->
         <footer class="lp-footer">
-            <div class="lp-logo" style="font-size: 1.2rem;">YumeZone</div>
+            <div class="lp-logo" style="font-size: 1.2rem;">
+                <img src="{{ url_for('static', filename='images/logos/no-bg-logo.png') }}" alt="YumeZone Logo" style="height: 32px;">
+                <div class="lp-logo-text">
+                    <span>YumeZone</span>
+                </div>
+            </div>
             <div class="lp-footer-copy">© 2026 YumeZone. Built for the community.</div>
             <div class="lp-nav" style="gap: 15px;">
                 <a href="/terms">Terms</a>
