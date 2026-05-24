@@ -232,7 +232,6 @@
                                         class="server-pill {% if p_name == default_p and (source_type == 'hls' or source_type == 'mp4') %}active{% endif %}"
                                         data-stream-type="hls" data-provider="{{ p_name }}">
                                         {{ p_name | title }}
-                                        <span class="srv-badge badge-hls">{% if caps.get("mp4") %}MP4{% else %}HLS{% endif %}</span>
                                     </button>
                                     {% endfor %}
                                 </div>
@@ -263,7 +262,6 @@
                                         class="server-pill {% if p_name == default_p and source_type == 'embed' %}active{% endif %}"
                                         data-stream-type="embed" data-provider="{{ p_name }}">
                                         {{ p_name | title }}
-                                        <span class="srv-badge badge-embed">EMBED</span>
                                     </button>
                                     {% endfor %}
                                 </div>

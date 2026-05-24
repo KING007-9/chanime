@@ -542,11 +542,8 @@ var PROVIDER_DISPLAY_NAMES = {
 function applyServerDisplayNames() {
     document.querySelectorAll('.server-pill').forEach(function(pill) {
         var p = pill.dataset.provider;
-        if (PROVIDER_DISPLAY_NAMES[p]) {
-            // Keep the badge span
-            var badge = pill.querySelector('.srv-badge');
-            pill.childNodes[0].textContent = PROVIDER_DISPLAY_NAMES[p] + ' ';
-            if (badge) pill.appendChild(badge);
+        if (PROVIDER_DISPLAY_NAMES[p] && pill.childNodes[0]) {
+            pill.childNodes[0].textContent = PROVIDER_DISPLAY_NAMES[p];
         }
     });
 }

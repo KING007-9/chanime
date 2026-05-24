@@ -1163,7 +1163,7 @@ media-player:not(:defined) {
     align-items: center;
     gap: 6px;
     padding: 7px 14px;
-    border-radius: 20px;
+    border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--text-secondary);
@@ -1178,40 +1178,15 @@ media-player:not(:defined) {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
     color: var(--text-primary);
+    transform: translateY(-1px);
 }
 
 .server-pill.active {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--bg-primary);
-    box-shadow: 0 2px 12px rgba(var(--accent-rgb, 128, 90, 213), 0.35);
-}
-
-.server-pill.active .srv-badge {
-    background: rgba(255, 255, 255, 0.25);
-    color: var(--bg-primary);
-}
-
-.srv-badge {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.58rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1;
-}
-
-.srv-badge.badge-hls {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
-}
-
-.srv-badge.badge-embed {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+    font-weight: 700;
 }
 
 /* Loading state: pulse animation during AJAX */
@@ -2096,10 +2071,7 @@ media-player:not(:defined) {
         font-size: 0.76rem;
     }
 
-    .srv-badge {
-        font-size: 0.52rem;
-        padding: 1px 4px;
-    }
+
 
     .stream-pill .pill-badge {
         font-size: 0.58rem;
@@ -2156,10 +2128,7 @@ media-player:not(:defined) {
         font-size: 0.7rem;
     }
 
-    .srv-badge {
-        font-size: 0.48rem;
-        padding: 1px 3px;
-    }
+
 
     .lang-btn {
         padding: 4px 9px;
