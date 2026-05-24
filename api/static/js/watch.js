@@ -408,9 +408,14 @@ function attachPlayerControls(shell, vid) {
     if (volSlider) { volSlider.value=vid.muted?0:vid.volume; volSlider.style.setProperty('--pct',(vid.muted?0:vid.volume*100)+'%'); }
 }
 // ── playHLS ───────────────────────────────────────────────────────
-function playHLS(rawUrl, allStreams) {
+function playHLS(rawUrl, allStreams, options) {
     const playerArea = document.getElementById('player-area');
     if (!playerArea) return;
+    if (!rawUrl || typeof rawUrl !== 'string') {
+        showNoSourcesMessage();
+        return;
+    }
+    options = options || {};
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
 
     const video = document.createElement('video');
@@ -425,7 +430,13 @@ function playHLS(rawUrl, allStreams) {
 
     if (typeof Hls === 'undefined') { console.error('[HLS] hls.js not loaded'); return; }
 
-    const isHls = rawUrl.includes('.m3u8') || rawUrl.includes('/proxy/m3u8') || rawUrl.includes('.urlset');
+    const isHls = options.type === 'mp4'
+        ? false
+        : options.type === 'hls'
+            || rawUrl.includes('.m3u8')
+            || rawUrl.includes('/proxy/m3u8')
+            || rawUrl.includes('/p/')
+            || rawUrl.includes('.urlset');
     if (Hls.isSupported() && isHls) {
         hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: false });
 
@@ -455,8 +466,10 @@ function playHLS(rawUrl, allStreams) {
             }
         });
 
-        hlsInstance.loadSource(rawUrl);
         hlsInstance.attachMedia(vid);
+        hlsInstance.on(Hls.Events.MEDIA_ATTACHED, function() {
+            hlsInstance.loadSource(rawUrl);
+        });
 
     } else if (!isHls) {
         vid.src = rawUrl;
@@ -778,14 +791,20 @@ function applyVideoSources(data) {
     var errEl = document.getElementById('errorFallbackContainer');
     if (errEl) errEl.style.display = 'none';
 
+    function sourceUrl(source) {
+        if (!source) return '';
+        if (typeof source === 'string') return source;
+        return source.file || source.url || '';
+    }
+
     if (useMp4 && mp4Sources.length) {
-        var mp4Url = mp4Sources[0].file || mp4Sources[0].url || data.video_link;
-        if (mp4Url) playHLS(proxyUrl(mp4Url, ''), mp4Sources);
+        var mp4Url = sourceUrl(mp4Sources[0]) || data.video_link;
+        if (mp4Url) playHLS(proxyUrl(mp4Url, ''), mp4Sources, { type: 'mp4' });
     } else if (!useEmbed && hlsSources.length) {
-        var url = hlsSources[0].file || hlsSources[0].url;
-        if (url) playHLS(proxyUrl(url, ''), hlsSources);
+        var url = sourceUrl(hlsSources[0]) || data.video_link;
+        if (url) playHLS(proxyUrl(url, ''), hlsSources, { type: 'hls' });
     } else if (data.source_type === 'mp4' && data.video_link) {
-        playHLS(proxyUrl(data.video_link, ''), mp4Sources);
+        playHLS(proxyUrl(data.video_link, ''), mp4Sources, { type: 'mp4' });
     } else if (embedSources.length) {
         // Use embed sources — either explicitly desired or as fallback
         playEmbed(embedSources[0].url);
@@ -1128,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cfg.sourceType === 'embed') {
             playEmbed(cfg.videoLink);
         } else {
-            playHLS(cfg.videoLink, null);
+            playHLS(cfg.videoLink, null, { type: cfg.sourceType === 'mp4' ? 'mp4' : 'hls' });
         }
     } else {
         // No server-side source — try AJAX fallback immediately
