@@ -275,6 +275,15 @@ def touch_room(room_id, client_id=None, display_name=None, avatar=None, user_id=
                     # If the host entry is being replaced, migrate host_id
                     if room.get("host_id") == mid:
                         update["host_id"] = client_id
+        else:
+            # Deduplicate guest users by display name to handle refreshes on browsers/modes with no localStorage persistence
+            cleaned_name = clean_display_name(display_name)
+            for mid, member in (room.get("members") or {}).items():
+                if mid != client_id and not member.get("user_id") and clean_display_name(member.get("name")) == cleaned_name:
+                    unset[f"members.{mid}"] = ""
+                    # If the host entry is being replaced, migrate host_id
+                    if room.get("host_id") == mid:
+                        update["host_id"] = client_id
 
         update[f"members.{client_id}"] = {
             "id": client_id,

@@ -655,6 +655,16 @@ function proxyUrl(url, referer) {
 function watchTogetherClientId() {
     var key = 'yume_watch_together_client_id';
     var legacyKey = 'yumeWatchTogetherClientId';
+
+    function randStr(len) {
+        var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var res = '';
+        for (var i = 0; i < len; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return res;
+    }
+
     try {
         var existing = localStorage.getItem(key) || localStorage.getItem(legacyKey);
         if (existing) {
@@ -662,12 +672,12 @@ function watchTogetherClientId() {
             localStorage.setItem(legacyKey, existing);
             return existing;
         }
-        var generated = 'c_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-6);
+        var generated = 'c_' + randStr(8) + Date.now().toString(36).slice(-6);
         localStorage.setItem(key, generated);
         localStorage.setItem(legacyKey, generated);
         return generated;
     } catch (err) {
-        return 'c_' + Math.random().toString(36).slice(2, 12);
+        return 'c_' + randStr(10);
     }
 }
 

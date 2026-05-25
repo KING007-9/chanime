@@ -43,6 +43,15 @@
     }
 
     /* ── Identity helpers ── */
+    function randStr(len) {
+        var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var res = '';
+        for (var i = 0; i < len; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return res;
+    }
+
     function clientId() {
         if (clientIdValue) return clientIdValue;
         try {
@@ -52,12 +61,12 @@
                 localStorage.setItem('yume_watch_together_client_id', stored);
                 return stored;
             }
-            clientIdValue = 'wt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+            clientIdValue = 'wt_' + randStr(16) + Date.now().toString(36);
             localStorage.setItem('yume_watch_together_client_id', clientIdValue);
             localStorage.setItem('yumeWatchTogetherClientId', clientIdValue);
             return clientIdValue;
         } catch (e) {
-            clientIdValue = 'wt_' + Math.random().toString(36).slice(2);
+            clientIdValue = 'wt_' + randStr(16);
             return clientIdValue;
         }
     }
@@ -543,6 +552,10 @@
             .then(function (response) { return response.json(); })
             .then(function (data) {
                 if (!data.success) throw data;
+                if (data.client_id && data.client_id !== clientIdValue) {
+                    clientIdValue = data.client_id;
+                    try { localStorage.setItem('yume_watch_together_client_id', data.client_id); } catch (e) {}
+                }
                 applySnapshot(data.room);
             })
             .catch(function () {
@@ -633,19 +646,29 @@
         var input = document.getElementById('wt-chat-input');
         var sendBtn = form ? form.querySelector('button[type="submit"]') : null;
         if (!form || !input) return;
+        var sending = false;
         form.addEventListener('submit', function (event) {
             event.preventDefault();
+            if (sending) return;
             var body = input.value.trim();
             if (!body) return;
+            sending = true;
             if (sendBtn) sendBtn.disabled = true;
+            input.disabled = true;
             input.value = '';
             postEvent('chat', { body: body })
                 .then(function () {
+                    sending = false;
                     if (sendBtn) sendBtn.disabled = false;
+                    input.disabled = false;
+                    input.focus();
                 })
                 .catch(function (err) {
+                    sending = false;
                     input.value = body;
                     if (sendBtn) sendBtn.disabled = false;
+                    input.disabled = false;
+                    input.focus();
                     var msg = (err && err.message) || 'Message failed to send';
                     showChatError(msg);
                 });
