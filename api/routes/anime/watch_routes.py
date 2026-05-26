@@ -820,7 +820,7 @@ def get_episodes_list_ajax(anime_id):
     allowed_hlss = ["zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "ax-beep", "bee"]
     sorted_providers = sorted(
         [p for p in providers_map.keys() if p in allowed_hlss],
-        key=lambda p: _PP.index(p),
+        key=lambda p: _PP.index(p) if p in _PP else len(_PP),
     )
     if (mal_id or anilist_id) and "zoro" not in sorted_providers:
         sorted_providers.append("zoro")

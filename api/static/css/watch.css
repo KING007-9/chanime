@@ -3077,6 +3077,22 @@ media-player [data-media-buffering] media-buffering-indicator circle {
     height: 100vh;
 }
 
+#player-area:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+}
+
+#player-area:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+}
+
 /* ── Mobile Double-Tap Seek Zones ─────────────────────────── */
 .yz-dt-zone {
     position: absolute;

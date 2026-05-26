@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Provider preference order — ONLY working servers (others are filtered out of the watch page)
 PROVIDER_PRIORITY = [
-    "zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "bee", "zoro", "anixtv",
+    "zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "ax-beep", "bee", "zoro", "anixtv",
 ]
 
 # Which stream types each provider supports.

@@ -325,11 +325,10 @@ function attachPlayerControls(shell, vid) {
                         }
                     }
                     if (skippedCount > 0 && nextNonFillerEl) {
-                        const destUrl = nextNonFillerEl.getAttribute('href');
                         const epNum = nextNonFillerEl.getAttribute('data-number') || nextNonFillerEl.textContent.trim().split('\n')[0].trim();
                         showToast(`Skipping ${skippedCount} filler episode${skippedCount > 1 ? 's' : ''} directly to Ep ${epNum}...`, 'info');
                         setTimeout(() => {
-                            window.location.href = destUrl;
+                            navigateToEpisode(epNum);
                         }, 1500);
                         return; // Prevent fallback normal click
                     }
@@ -479,7 +478,8 @@ function attachPlayerControls(shell, vid) {
 
     // Fullscreen + mobile landscape rotation
     fsBtn?.addEventListener('click', ()=>{
-        if (!document.fullscreenElement) shell.requestFullscreen?.()?.catch(()=>{});
+        var targetFs = document.getElementById('player-area') || shell;
+        if (!document.fullscreenElement) targetFs.requestFullscreen?.()?.catch(()=>{});
         else document.exitFullscreen?.();
     });
     document.addEventListener('fullscreenchange', ()=>{
@@ -1578,31 +1578,52 @@ function loadAnimeXProgressively() {
 
 function loadHindiProgressively() {
     var cfg = window.WATCH_CONFIG || {};
+    var state = window._watchState || {};
     fetch('/api/watch/' + cfg.animeId + '/episodes/hindi?episode=' + cfg.episodeNumber)
     .then(function(r) { return r.json(); })
     .then(function(data) {
+        var btnDub = document.getElementById('btnDub') || document.querySelector('.lang-toggle button:last-child');
         if (data.success && data.hindi_available) {
-            var btnDub = document.getElementById('btnDub') || document.querySelector('.lang-toggle button:last-child');
-            if (btnDub && btnDub.hasAttribute('disabled')) {
+            if (btnDub) {
                 btnDub.removeAttribute('disabled');
                 btnDub.removeAttribute('title');
                 btnDub.onclick = function() { switchLanguage('dub'); };
-                btnDub.className = 'lang-btn' + (window._watchState.language === 'dub' ? ' active' : '');
+                btnDub.className = 'lang-btn' + (state.language === 'dub' ? ' active' : '');
             }
             
-            var state = window._watchState || {};
             state.providers = state.providers || [];
             if (!state.providers.includes('anixtv')) {
                 state.providers.push('anixtv');
-                state.providers_map = state.providers_map || {};
-                state.providers_map['anixtv'] = {
-                    "episodes": {
-                        "sub": [{"number": cfg.episodeNumber}],
-                        "dub": [{"number": cfg.episodeNumber}]
-                    }
-                };
-                renderServerPills();
             }
+            state.providers_map = state.providers_map || {};
+            state.providers_map['anixtv'] = {
+                "episodes": {
+                    "sub": [{"number": cfg.episodeNumber}],
+                    "dub": [{"number": cfg.episodeNumber}]
+                }
+            };
+            renderServerPills();
+        } else {
+            if (state.providers) {
+                var idx = state.providers.indexOf('anixtv');
+                if (idx !== -1) {
+                    state.providers.splice(idx, 1);
+                }
+            }
+            if (!state.dubAvailable) {
+                if (btnDub) {
+                    btnDub.setAttribute('disabled', 'true');
+                    btnDub.setAttribute('title', 'Dub not available');
+                    btnDub.onclick = null;
+                    btnDub.className = 'lang-btn';
+                }
+                if (state.language === 'dub') {
+                    showToast('Hindi dub not available for this episode, switching to SUB', 'info');
+                    switchLanguage('sub');
+                    return;
+                }
+            }
+            renderServerPills();
         }
     })
     .catch(function(e) { console.error('[Hindi progressive] Error:', e); });
@@ -1831,6 +1852,115 @@ function updateNavigationButtons(episodes) {
     }
 }
 
+function navigateToEpisode(epNum, isPopState) {
+    if (!epNum) return;
+    
+    // 1. Save watch history of current episode if video is playing
+    const vid = document.getElementById('yz-video');
+    if (vid) {
+        try {
+            saveWatchHistory(vid.currentTime, vid.duration);
+        } catch(e) {
+            console.error('[navigateToEpisode] Error saving history:', e);
+        }
+    }
+    
+    // 2. Update config and state
+    const targetEpNum = parseInt(epNum, 10) || parseFloat(epNum) || epNum;
+    if (window.WATCH_CONFIG) {
+        window.WATCH_CONFIG.episodeNumber = targetEpNum;
+    }
+    if (window.COMMENTS_CONFIG) {
+        window.COMMENTS_CONFIG.episodeNumber = targetEpNum;
+    }
+    if (window._watchState) {
+        window._watchState.episodeNumber = targetEpNum;
+    }
+    
+    // 3. Clear failed providers and reset fallback flags
+    resetFailedProviders();
+    resetWatchedFlag();
+    globalTimestamps = { intro: null, outro: null };
+    _lastProbe = { t: 0, ct: -1 };
+    
+    // 4. Update browser history / URL (unless triggered by popstate)
+    const newUrl = `/watch/${(window.WATCH_CONFIG && window.WATCH_CONFIG.animeId) || ''}/ep-${targetEpNum}`;
+    if (!isPopState) {
+        history.pushState(null, '', newUrl);
+    }
+    
+    // 5. Update browser title
+    const animeName = (window.WATCH_CONFIG && window.WATCH_CONFIG.animeName) || '';
+    document.title = `${animeName}, Episode ${targetEpNum} - YumeZone`;
+    
+    // 6. Update the episode title heading
+    const titleEl = document.getElementById('watch-episode-title');
+    if (titleEl) {
+        let epTitle = '';
+        if (window._watchState && window._watchState.episodesList) {
+            const ep = window._watchState.episodesList.find(e => String(e.number) === String(targetEpNum));
+            if (ep) epTitle = ep.title || '';
+        }
+        titleEl.textContent = `${targetEpNum}. ${epTitle || animeName || 'Episode'}`;
+    }
+    
+    // 7. Show player skeleton loader while resolving sources
+    const playerArea = document.getElementById('player-area');
+    if (playerArea) {
+        playerArea.innerHTML = `
+            <div class="player-skeleton skeleton" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0c0c0c; z-index: 10;">
+                <div style="text-align: center; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                    <div class="yz-spinner" style="border-top-color: var(--accent);"></div>
+                    <span style="font-size: 0.85rem; font-weight: 600; letter-spacing: 1.5px; opacity: 0.75; text-transform: uppercase;">RESOLVING STREAM SOURCES...</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Hide error fallback if it was shown
+    const errFallback = document.getElementById('errorFallbackContainer');
+    if (errFallback) errFallback.style.display = 'none';
+    
+    // 8. Re-render/update UI components
+    if (window._watchState) {
+        // Redraw server pills
+        renderServerPills();
+        
+        // Update sidebar items highlight
+        const listContainer = document.getElementById('episodeList');
+        if (listContainer) {
+            listContainer.querySelectorAll('.episode-sidebar-item').forEach(function(item) {
+                const isCurrent = String(item.dataset.number) === String(targetEpNum);
+                item.classList.toggle('current', isCurrent);
+                if (isCurrent) {
+                    item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            });
+        }
+        
+        // Update prev/next buttons
+        if (window._watchState.episodesList) {
+            updateNavigationButtons(window._watchState.episodesList);
+        }
+    }
+    
+    // 9. Reload streaming sources
+    _isFallbackInProgress = true;
+    fetchAndLoadSources(true);
+    
+    // 10. Load progressive background tasks (for the new episode)
+    setTimeout(loadZenithProgressively, 10);
+    setTimeout(loadAnimeXProgressively, 50);
+    setTimeout(loadHindiProgressively, 100);
+    
+    // 11. Refresh comments & reactions
+    if (window._commentsManager) {
+        window._commentsManager.episodeNum = targetEpNum;
+        window._commentsManager._loadComments();
+        window._commentsManager._loadEpisodeReaction();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initWatchQuickBar();
     var cfg = window.WATCH_CONFIG || {};
@@ -1851,6 +1981,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.success && data.episodes) {
             // Update watch state
             var state = window._watchState;
+            state.episodesList = data.episodes;
             state.providers = data.sorted_providers || [];
             state.providers_map = data.providers_map || {};
             
@@ -1897,6 +2028,57 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('[Watch DOMContentLoaded] Error fetching episodes list:', err);
         showNoSourcesMessage();
     });
+});
+
+// ── Intercept links for AJAX episode switching ────────────────────
+document.addEventListener('click', function(e) {
+    // 1. Check if it's the prev button
+    var prevBtn = document.querySelector('.watch-nav-left a:first-child');
+    if (prevBtn && prevBtn.contains(e.target)) {
+        if (prevBtn.getAttribute('aria-disabled') === 'true' || prevBtn.getAttribute('href') === 'javascript:void(0)') {
+            return;
+        }
+        e.preventDefault();
+        var match = prevBtn.getAttribute('href').match(/ep-(\d+(?:\.\d+)?)/);
+        if (match) {
+            navigateToEpisode(match[1]);
+        }
+        return;
+    }
+
+    // 2. Check if it's the next button
+    var nextBtn = document.getElementById('next-episode-btn');
+    if (nextBtn && nextBtn.contains(e.target)) {
+        if (nextBtn.getAttribute('aria-disabled') === 'true' || nextBtn.getAttribute('href') === 'javascript:void(0)') {
+            return;
+        }
+        e.preventDefault();
+        var match = nextBtn.getAttribute('href').match(/ep-(\d+(?:\.\d+)?)/);
+        if (match) {
+            window._forceEpisodeComplete = true;
+            navigateToEpisode(match[1]);
+        }
+        return;
+    }
+
+    // 3. Check if it's a sidebar episode item
+    var sidebarItem = e.target.closest('.episode-sidebar-item');
+    if (sidebarItem) {
+        e.preventDefault();
+        var epNum = sidebarItem.dataset.number;
+        if (epNum) {
+            navigateToEpisode(epNum);
+        }
+        return;
+    }
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function() {
+    var match = window.location.pathname.match(/ep-(\d+(?:\.\d+)?)/);
+    if (match) {
+        navigateToEpisode(match[1], true);
+    }
 });
 
 // ── Report / Fix Issue Modal Logic ─────────────────────────────────────────────
