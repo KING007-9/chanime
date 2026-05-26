@@ -309,6 +309,34 @@ function attachPlayerControls(shell, vid) {
         try{localStorage.removeItem(resumeKey);}catch{} 
         const autoplay = localStorage.getItem('yume_autoplay') === 'true';
         if (autoplay) {
+            const skipFiller = localStorage.getItem('yume_skip_filler') === 'true';
+            if (skipFiller) {
+                const items = Array.from(document.querySelectorAll('.episode-sidebar-item'));
+                const currentIndex = items.findIndex(el => el.classList.contains('current'));
+                if (currentIndex !== -1) {
+                    let skippedCount = 0;
+                    let nextNonFillerEl = null;
+                    for (let i = currentIndex + 1; i < items.length; i++) {
+                        if (items[i].classList.contains('is-filler')) {
+                            skippedCount++;
+                        } else {
+                            nextNonFillerEl = items[i];
+                            break;
+                        }
+                    }
+                    if (skippedCount > 0 && nextNonFillerEl) {
+                        const destUrl = nextNonFillerEl.getAttribute('href');
+                        const epNum = nextNonFillerEl.getAttribute('data-number') || nextNonFillerEl.textContent.trim().split('\n')[0].trim();
+                        showToast(`Skipping ${skippedCount} filler episode${skippedCount > 1 ? 's' : ''} directly to Ep ${epNum}...`, 'info');
+                        setTimeout(() => {
+                            window.location.href = destUrl;
+                        }, 1500);
+                        return; // Prevent fallback normal click
+                    }
+                }
+            }
+            
+            // Fallback standard behavior
             const nextBtn = document.getElementById('next-episode-btn');
             if (nextBtn && nextBtn.getAttribute('href') && nextBtn.getAttribute('href') !== 'javascript:void(0)') {
                 showToast('Autoplaying next episode...', 'info');
@@ -1119,6 +1147,40 @@ function markEpisodeWatched() {
                 if (shell.syncMute) shell.syncMute();
                 show();
                 break;
+            case 't':
+                e.preventDefault();
+                if (window.innerWidth > 1024) {
+                    const mainLayout = document.querySelector('.watch-main');
+                    if (mainLayout) {
+                        const isHidden = mainLayout.classList.toggle('hide-sidebar');
+                        const toggleBtn = document.getElementById('btn-toggle-sidebar');
+                        if (toggleBtn) toggleBtn.classList.toggle('active', isHidden);
+                        if (window.showToast) {
+                            showToast('Episode sidebar ' + (isHidden ? 'hidden' : 'shown'), 'success');
+                        }
+                    }
+                }
+                break;
+            case 'c':
+                e.preventDefault();
+                const lightsBtn = document.getElementById('btn-lightsoff');
+                if (lightsBtn) lightsBtn.click();
+                break;
+            case 'n':
+                e.preventDefault();
+                const nativeBtn = document.getElementById('btn-native');
+                if (nativeBtn) nativeBtn.click();
+                break;
+            case '/':
+                e.preventDefault();
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) searchInput.focus();
+                break;
+            case '?':
+                e.preventDefault();
+                const sModalBtn = document.getElementById('btn-shortcuts');
+                if (sModalBtn) sModalBtn.click();
+                break;
         }
     });
 })();
@@ -1222,10 +1284,12 @@ function initWatchQuickBar() {
     const autoplayToggle = document.getElementById('q-autoplay');
     const autoskipToggle = document.getElementById('q-autoskip');
     const autonextToggle = document.getElementById('q-autonext');
+    const skipfillerToggle = document.getElementById('q-skipfiller');
     
     const chkAutoplay = document.getElementById('chk-autoplay');
     const chkAutoskip = document.getElementById('chk-autoskip');
     const chkAutonext = document.getElementById('chk-autonext');
+    const chkSkipfiller = document.getElementById('chk-skipfiller');
 
     // Load initial states from localStorage
     // 1. Autoplay player on load
@@ -1247,6 +1311,13 @@ function initWatchQuickBar() {
     if (chkAutonext) {
         chkAutonext.checked = isAutonext;
         autonextToggle.classList.toggle('active', isAutonext);
+    }
+
+    // 4. Auto Skip Filler
+    const isSkipfiller = localStorage.getItem('yume_skip_filler') === 'true'; // default to false
+    if (chkSkipfiller) {
+        chkSkipfiller.checked = isSkipfiller;
+        skipfillerToggle?.classList.toggle('active', isSkipfiller);
     }
 
     // Toggle click listeners
@@ -1290,6 +1361,16 @@ function initWatchQuickBar() {
         if (playerCurAutoplayLbl) playerCurAutoplayLbl.textContent = newVal ? 'On' : 'Off';
         
         showToast('Auto Play ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
+
+    skipfillerToggle?.addEventListener('click', e => {
+        e.preventDefault();
+        const newVal = !chkSkipfiller.checked;
+        chkSkipfiller.checked = newVal;
+        localStorage.setItem('yume_skip_filler', newVal ? 'true' : 'false');
+        skipfillerToggle.classList.toggle('active', newVal);
+        
+        showToast('Skip Filler ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
     });
 
     // ── Shortcuts Modal ──
@@ -1351,6 +1432,27 @@ function initWatchQuickBar() {
                 // Hide custom player controls if native is active
                 const ctrls = document.getElementById('yz-controls');
                 if (ctrls) ctrls.style.display = newVal ? 'none' : '';
+            }
+        });
+    }
+
+    // ── Sidebar Toggle Button ──
+    const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+    if (btnToggleSidebar) {
+        btnToggleSidebar.addEventListener('click', () => {
+            if (window.innerWidth > 1024) {
+                const mainLayout = document.querySelector('.watch-main');
+                if (mainLayout) {
+                    const isHidden = mainLayout.classList.toggle('hide-sidebar');
+                    btnToggleSidebar.classList.toggle('active', isHidden);
+                    if (window.showToast) {
+                        showToast('Episode sidebar ' + (isHidden ? 'hidden' : 'shown'), 'success');
+                    }
+                }
+            } else {
+                if (window.showToast) {
+                    showToast('Sidebar toggling is only available on desktop', 'error');
+                }
             }
         });
     }

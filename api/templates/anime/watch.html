@@ -146,6 +146,11 @@
                         <span class="indicator"></span>
                         <span class="label">Auto Next</span>
                     </label>
+                    <label class="quick-toggle" id="q-skipfiller" title="Auto skip filler episodes">
+                        <input type="checkbox" id="chk-skipfiller">
+                        <span class="indicator"></span>
+                        <span class="label">Skip Filler</span>
+                    </label>
                     <button class="quick-btn" id="btn-shortcuts">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="quick-icon" style="margin-right: 4px;">
                             <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
@@ -176,6 +181,14 @@
                             <line x1="12" y1="17" x2="12" y2="21"></line>
                         </svg>
                         <span>Natv</span>
+                    </button>
+                    <!-- PC-only Sidebar Toggle Button -->
+                    <button class="quick-btn pc-only-btn" id="btn-toggle-sidebar" title="Toggle Sidebar (T)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="quick-icon" style="margin-right: 4px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                        </svg>
+                        <span>Sidebar</span>
                     </button>
                 </div>
             </div>
@@ -822,40 +835,531 @@
 <div class="lights-off-overlay" id="lights-off-overlay"></div>
 
 <!-- Keyboard Shortcuts Modal -->
+<!-- Keyboard Shortcuts Modal -->
 <div class="modal" id="shortcuts-modal" style="display: none; align-items: center; justify-content: center; z-index: 10010;">
     <div class="modal-backdrop" id="close-shortcuts-backdrop" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);"></div>
-    <div class="modal-content" style="max-width: 450px; background: #0c0c0e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; color: #fff; padding: 24px; position: relative; z-index: 10015; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
-        <button type="button" class="modal-close" id="close-shortcuts-modal" aria-label="Close" style="background: none; border: none; color: #8a8a93; cursor: pointer; float: right; font-size: 1.2rem; margin-top: -5px; transition: color 0.2s;">✕</button>
-        <h3 style="margin-top: 0; margin-bottom: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; font-size: 1.2rem; color: #fff;">
-            <span>⌨</span> Keyboard Shortcuts
-        </h3>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Play / Pause</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">Space / K</span>
+    
+    <!-- Custom Style encapsulation for the beautiful modal -->
+    <style>
+        .sc-modal-content {
+            width: 95%;
+            max-width: 900px;
+            height: 580px;
+            background: #09090b;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: #fff;
+            position: relative;
+            z-index: 10015;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: #09090b;
+        }
+
+        .sc-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #e4e4e7;
+            margin: 0;
+        }
+        
+        .sc-title span {
+            color: #52525b;
+            margin: 0 8px;
+            font-weight: 400;
+        }
+
+        .sc-close-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #a1a1aa;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .sc-close-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .sc-body {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .sc-sidebar {
+            width: 240px;
+            background: #060608;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sc-search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .sc-search-input {
+            width: 100%;
+            background: #121215;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            padding: 10px 12px 10px 34px;
+            color: #fff;
+            font-size: 0.82rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .sc-search-input:focus {
+            border-color: #ffffff;
+            background: #16161a;
+        }
+
+        .sc-search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #52525b;
+            pointer-events: none;
+        }
+
+        .sc-tabs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sc-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            background: transparent;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            outline: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sc-tab-btn svg {
+            color: #52525b;
+            transition: color 0.2s;
+        }
+
+        .sc-tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .sc-tab-btn:hover svg {
+            color: #a1a1aa;
+        }
+
+        .sc-tab-btn.active {
+            background: rgba(255, 255, 255, 0.04);
+            color: #fff;
+        }
+
+        .sc-tab-btn.active svg {
+            color: #ffffff;
+        }
+
+        .sc-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: #09090b;
+        }
+
+        .sc-content-header {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #71717a;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sc-content-header svg {
+            color: #ffffff;
+        }
+
+        .sc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sc-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 12px 18px;
+            transition: all 0.2s;
+        }
+
+        .sc-card:hover {
+            background: rgba(255, 255, 255, 0.02);
+            border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .sc-card-title {
+            color: #d4d4d8;
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .sc-card-keys {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sc-kbd {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-family: var(--font-mono, monospace);
+            font-size: 0.78rem;
+            color: #e4e4e7;
+            font-weight: 600;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+            min-width: 24px;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .sc-join {
+            font-size: 0.8rem;
+            color: #52525b;
+            font-weight: 600;
+        }
+
+        .sc-or {
+            font-size: 0.75rem;
+            color: #71717a;
+            font-weight: 500;
+            margin: 0 4px;
+            font-style: italic;
+        }
+
+        .sc-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 0;
+            color: #71717a;
+            text-align: center;
+            gap: 8px;
+        }
+
+        .sc-empty h4 {
+            color: #d4d4d8;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .sc-modal-content {
+                height: 90%;
+            }
+            .sc-body {
+                flex-direction: column;
+            }
+            .sc-sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 12px;
+                gap: 10px;
+            }
+            .sc-tabs-list {
+                flex-direction: row;
+                overflow-x: auto;
+                padding-bottom: 4px;
+            }
+            .sc-tab-btn {
+                white-space: nowrap;
+                width: auto;
+                padding: 6px 12px;
+            }
+            .sc-content {
+                padding: 16px;
+            }
+        }
+    </style>
+
+    <div class="sc-modal-content">
+        <div class="sc-header">
+            <h3 class="sc-title">Settings <span>/</span> <strong style="color: #fff;">Shortcuts</strong></h3>
+            <button type="button" class="sc-close-btn" id="close-shortcuts-modal" aria-label="Close">✕</button>
+        </div>
+
+        <div class="sc-body">
+            <!-- Sidebar with Search & Tabs -->
+            <div class="sc-sidebar">
+                <div class="sc-search-wrapper">
+                    <input type="text" id="sc-search" class="sc-search-input" placeholder="Search shortcuts..." autocomplete="off">
+                    <svg class="sc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+
+                <div class="sc-tabs-list">
+                    <button class="sc-tab-btn active" data-cat="global">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                        </svg>
+                        Global / App
+                    </button>
+                    <button class="sc-tab-btn" data-cat="watching">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"/>
+                            <line x1="8" y1="12" x2="21" y2="12"/>
+                            <line x1="8" y1="18" x2="21" y2="18"/>
+                            <line x1="3" y1="6" x2="3.01" y2="6"/>
+                            <line x1="3" y1="12" x2="3.01" y2="12"/>
+                            <line x1="3" y1="18" x2="3.01" y2="18"/>
+                        </svg>
+                        Watching / Episodes
+                    </button>
+                    <button class="sc-tab-btn" data-cat="player">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Player Controls
+                    </button>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Seek Forward</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">→ / L</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Seek Backward</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">← / J</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Volume Up / Down</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">↑ / ↓</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Mute / Unmute</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">M</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
-                <span style="color: #8a8a93; font-size: 0.9rem;">Toggle Fullscreen</span>
-                <span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05);">F</span>
+
+            <!-- Content Area (rendered dynamically) -->
+            <div class="sc-content">
+                <h4 class="sc-content-header" id="sc-cat-header">
+                    <svg id="sc-cat-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                    </svg>
+                    <span id="sc-cat-name">Global / App</span>
+                </h4>
+                <div class="sc-list" id="sc-shortcuts-list">
+                    <!-- populated by Javascript -->
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Self-contained JS module for beautiful shortcuts filtering & rendering -->
+    <script>
+        (function() {
+            const shortcutsData = [
+                {
+                    category: 'global',
+                    title: 'Open Shortcuts Help',
+                    keys: [['?']]
+                },
+                {
+                    category: 'global',
+                    title: 'Focus Search Bar',
+                    keys: [['/']]
+                },
+                {
+                    category: 'global',
+                    title: 'Close Modals / Cancel',
+                    keys: [['Esc']]
+                },
+                {
+                    category: 'watching',
+                    title: 'Toggle Episode Sidebar (PC)',
+                    keys: [['T']]
+                },
+                {
+                    category: 'watching',
+                    title: 'Toggle Cinematic Lights',
+                    keys: [['C']]
+                },
+                {
+                    category: 'watching',
+                    title: 'Toggle Native Player',
+                    keys: [['N']]
+                },
+                {
+                    category: 'player',
+                    title: 'Play / Pause Video',
+                    keys: [['Space'], ['K']]
+                },
+                {
+                    category: 'player',
+                    title: 'Seek Forward 5-10s',
+                    keys: [['→'], ['L']]
+                },
+                {
+                    category: 'player',
+                    title: 'Seek Backward 5-10s',
+                    keys: [['←'], ['J']]
+                },
+                {
+                    category: 'player',
+                    title: 'Increase Volume 5%',
+                    keys: [['↑']]
+                },
+                {
+                    category: 'player',
+                    title: 'Decrease Volume 5%',
+                    keys: [['↓']]
+                },
+                {
+                    category: 'player',
+                    title: 'Mute / Unmute Audio',
+                    keys: [['M']]
+                },
+                {
+                    category: 'player',
+                    title: 'Toggle Fullscreen Player',
+                    keys: [['F']]
+                }
+            ];
+
+            const categoryHeaders = {
+                global: {
+                    name: 'Global / App',
+                    icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`
+                },
+                watching: {
+                    name: 'Watching / Episodes',
+                    icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`
+                },
+                player: {
+                    name: 'Player Controls',
+                    icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+                }
+            };
+
+            let activeCategory = 'global';
+            let searchQuery = '';
+
+            const listEl = document.getElementById('sc-shortcuts-list');
+            const searchEl = document.getElementById('sc-search');
+            const tabButtons = document.querySelectorAll('.sc-tab-btn');
+            const headerNameEl = document.getElementById('sc-cat-name');
+            const headerIconEl = document.getElementById('sc-cat-header');
+
+            function renderKeys(keys) {
+                return keys.map(group => {
+                    return group.map(k => `<kbd class="sc-kbd">${k}</kbd>`).join('<span class="sc-join">+</span>');
+                }).join('<span class="sc-or">or</span>');
+            }
+
+            function renderShortcuts() {
+                // If search query is present, we filter all shortcuts. Otherwise, filter by active category.
+                let filtered = shortcutsData;
+                
+                if (searchQuery.trim() !== '') {
+                    filtered = shortcutsData.filter(item => 
+                        item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        item.category.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                    headerNameEl.textContent = 'Search Results';
+                    headerIconEl.firstElementChild.outerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+                } else {
+                    filtered = shortcutsData.filter(item => item.category === activeCategory);
+                    const headInfo = categoryHeaders[activeCategory];
+                    headerNameEl.textContent = headInfo.name;
+                    headerIconEl.firstElementChild.outerHTML = headInfo.icon;
+                }
+
+                if (filtered.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="sc-empty">
+                            <h4>No shortcuts found</h4>
+                            <p style="font-size:0.8rem;margin:0;">Try typing another query or switching tabs.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listEl.innerHTML = filtered.map(item => `
+                    <div class="sc-card">
+                        <span class="sc-card-title">${item.title}</span>
+                        <div class="sc-card-keys">
+                            ${renderKeys(item.keys)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Tab Switching Event listeners
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    activeCategory = btn.dataset.cat;
+                    
+                    // Clear search on tab switch for better UX
+                    searchEl.value = '';
+                    searchQuery = '';
+                    
+                    renderShortcuts();
+                });
+            });
+
+            // Live Search input event listener
+            if (searchEl) {
+                searchEl.addEventListener('input', (e) => {
+                    searchQuery = e.target.value;
+                    renderShortcuts();
+                });
+            }
+
+            // Init call
+            renderShortcuts();
+        })();
+    </script>
 </div>
 
 {% endblock %}

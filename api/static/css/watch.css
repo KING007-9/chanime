@@ -29,6 +29,21 @@
         flex-direction: column;
     }
 
+    .watch-main.hide-sidebar {
+        grid-template-columns: 1fr !important;
+    }
+
+    .watch-main.hide-sidebar .watch-sidebar-column {
+        display: none !important;
+    }
+
+    .watch-main.hide-sidebar .watch-player-column {
+        grid-column: 1 !important;
+        max-width: 1120px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
     .episode-sidebar {
         /* Height is set dynamically by JS to match the video player */
         max-height: var(--player-area-height, calc(100vh - 100px)) !important;
@@ -3635,6 +3650,10 @@ body.lights-off-active .yz-player {
     }
 
     #btn-native {
+        display: none;
+    }
+
+    #btn-toggle-sidebar {
         display: none;
     }
 
