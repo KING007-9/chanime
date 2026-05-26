@@ -25,6 +25,8 @@
 
         <!-- Main -->
         <div class="watch-main">
+            <!-- Right Column: Video Player & Settings -->
+            <div class="watch-player-column">
             {% if episodes_unavailable %}
             <!-- Episodes Unavailable / Upcoming Banner -->
             <div class="video-wrapper" id="video-wrapper" style="position: relative;">
@@ -369,253 +371,63 @@
 
             {% endif %}
 
-            <!-- Episodes Container -->
-            <div class="episode-sidebar"
-                style="position: relative; top: 0; height: auto; max-height: none; margin-top: 15px;">
-                <div class="episode-sidebar-header">
-                    <div class="episode-sidebar-header-top">
-                        <span>Episodes</span>
-                        <div class="view-toggle">
-                            <button class="view-btn active" id="view-grid-btn" title="Grid View">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                </svg>
-                            </button>
-                            <button class="view-btn" id="view-list-btn" title="List View">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <line x1="8" y1="6" x2="21" y2="6"></line>
-                                    <line x1="8" y1="12" x2="21" y2="12"></line>
-                                    <line x1="8" y1="18" x2="21" y2="18"></line>
-                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="episode-search-wrapper">
-                        <svg class="episode-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" id="episodeSearch" class="episode-search-input"
-                            placeholder="Search episode...">
-                    </div>
-                </div>
 
-                <div class="episode-sidebar-list" id="episodeList" data-view="grid">
-                    {% if episodes_unavailable or not episodes or not episodes.episodes %}
-                    <div class="episodes-empty-state">
-                        <div class="ee-icon">
-                            {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                            {% else %}
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                            {% endif %}
-                        </div>
-                        <h3>
-                            {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
-                                Upcoming Anime
-                            {% else %}
-                                No Episodes Yet
-                            {% endif %}
-                        </h3>
-                        <p>
-                            {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
-                                Episodes will appear here once they start airing.
-                            {% else %}
-                                We couldn't find any episodes for this anime. Check back later!
-                            {% endif %}
-                        </p>
-                    </div>
-                    {% else %}
-                    {% for ep in episodes.episodes %}
-                    {% set is_current = (ep.number|string == episode_number|string) or (ep.number|int == Episode|int) %}
-                    <a href="/watch/{{ anime_id or eps_title.split('?')[0] }}/ep-{{ ep.number }}"
-                        class="episode-sidebar-item {% if is_current %}current{% endif %} {% if ep.isFiller %}is-filler{% endif %}"
-                        data-number="{{ ep.number }}">
-                        <div class="episode-sidebar-num">{{ ep.number }}</div>
-                        <div class="episode-info">
-                            <div class="episode-title">
-                                {{ ep.title }}
-                                {% if ep.isFiller %}
-                                <span class="filler-badge">Filler</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </a>
-                    {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
 
 <!-- ========================================== -->
 <!-- ANIME INFO SECTION -->
 <!-- ========================================== -->
 {% if anime %}
+<div class="anime-details-section" style="margin-top: 20px;">
+    <div class="anime-details-grid">
 
-
-<div class="container" style="max-width: 1400px; padding: 0 15px;">
-    <div class="anime-details-section">
-        <div class="anime-details-grid">
-
-            <!-- Left Column: Poster & Quick Meta -->
-            <div class="anime-side">
-                <img src="{{ anime.get('coverImage') or anime.get('poster') }}" alt="Poster" class="anime-poster">
-
-                <div class="anime-meta-grid"
-                    style="margin-top: 15px; padding: 12px; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="meta-item">
-                        <span class="meta-label">Score</span>
-                        <span class="meta-value" style="color: #fbbf24; font-weight: bold;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"
-                                style="vertical-align: text-top;">
-                                <polygon
-                                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
-                                </polygon>
-                            </svg>
-                            {{ ((anime.stats.rating|float) / 10) | round(1) if anime.stats and anime.stats.rating else
-                            'N/A' }}
-                        </span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Format</span>
-                        <span class="meta-value">{{ anime.stats.type if anime.stats and anime.stats.type else 'TV'
-                            }}</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Status</span>
-                        <span class="meta-value">{{ anime.status | default('Unknown') | replace('_', ' ') | title
-                            }}</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Duration</span>
-                        <span class="meta-value">{{ anime.stats.duration if anime.stats and anime.stats.duration else
-                            'N/A' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Details -->
-            <div class="anime-main" style="min-width: 0;">
-                <div class="anime-title-block">
-                    <h1 class="anime-title-main">{{ anime.name or anime.title }}</h1>
-                    {% if anime.jname or anime.japanese_title %}
-                    <p class="anime-title-sub">
-                        {{ anime.jname or anime.japanese_title }}
-                    </p>
-                    {% endif %}
-                </div>
-
-                <div class="tag-list">
-                    {% for genre in anime.get('genres', []) %}
-                    <a href="/genre/{{ genre | lower | replace(' ', '-') }}" class="tag-pill genre-link">
-                        {{ genre }}
-                    </a>
-                    {% endfor %}
-
-                    {% if anime.get('studios') and anime.get('studios')|length > 0 %}
-                    <a href="/studio/{{ anime.get('studios')[0].id }}" class="tag-pill studio-link" style="background: rgba(255,255,255,0.1); color: var(--text-secondary); text-decoration: none; transition: all 0.2s;">
-                        Studio: {{ anime.get('studios')[0].name }}
-                    </a>
-                    <style>
-                        .studio-link:hover {
-                            background: rgba(255, 71, 87, 0.2) !important;
-                            color: #ff4757 !important;
-                        }
-                    </style>
-                    {% endif %}
-                </div>
-
-                <!-- Synopsis with basic clean up -->
-                <div class="anime-synopsis">
-                    {{ (anime.get('description') or anime.get('synopsis') or 'No description available for this anime.')
-                    | striptags }}
-                </div>
-
-                <!-- Relations Section -->
-                {% set all_seasons = [] %}
-                {% set seen_season_ids = [] %}
-
-                {% for p in anime.prequels %}
-                {% if (p.id|string) not in seen_season_ids %}
-                {% set _ = all_seasons.append(p) %}
-                {% set _ = seen_season_ids.append(p.id|string) %}
-                {% endif %}
-                {% endfor %}
-
-                {# Add current anime #}
-                {% set current_entry = {"id": anime.anilistId or anime.id, "name": anime.title or anime.name, "poster": anime.poster, "isCurrent": true} %}
-                {% if (current_entry.id|string) not in seen_season_ids %}
-                {% set _ = all_seasons.append(current_entry) %}
-                {% set _ = seen_season_ids.append(current_entry.id|string) %}
-                {% endif %}
-
-                {% for s in anime.sequels %}
-                {% if (s.id|string) not in seen_season_ids %}
-                {% set _ = all_seasons.append(s) %}
-                {% set _ = seen_season_ids.append(s.id|string) %}
-                {% endif %}
-                {% endfor %}
-
-                {% if all_seasons|length > 1 %}
-                <div class="section-heading">Franchise Seasons</div>
-                <div class="relations-grid">
-                    {% for rel in all_seasons %}
-                    <a href="/anime/{{ rel.id }}" class="relation-card {% if rel.isCurrent is defined and rel.isCurrent %}current{% endif %}" title="{{ rel.name or rel.title }}">
-                        {% if rel.isCurrent is defined and rel.isCurrent %}
-                        <span class="relation-type" style="background: var(--primary-color, #ff3e3e); color: white;">CURRENT</span>
-                        {% else %}
-                        <span class="relation-type">{{ rel.badge or (rel.relation or "Related") | upper }}</span>
-                        {% endif %}
-                        <img src="{{ rel.image or rel.poster or 'https://via.placeholder.com/200x300?text=No+Image' }}"
-                            alt="{{ rel.name or rel.title }}" loading="lazy">
-                        <div class="relation-title-wrap">
-                            <span class="relation-title">{{ rel.name or rel.title }}</span>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <!-- Characters Section -->
-                {% set characters = anime.characters %}
-                {% if characters and characters|length > 0 %}
-                <div class="section-heading">Characters</div>
-                <div class="character-scroll">
-                    {% for char_data in characters %}
-                    {% if loop.index <= 20 %} {# Limit to first 20 characters mostly #} <div class="character-card">
-                        <img src="{{ char_data.character.poster or char_data.character.image }}"
-                            alt="{{ char_data.character.name }}" class="character-img" loading="lazy">
-                        <span class="character-name" title="{{ char_data.character.name }}">{{ char_data.character.name
-                            }}</span>
-                        <span class="character-role">{{ char_data.character.cast or 'Main' }}</span>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            {% endif %}
-
+        <!-- Left Column: Poster -->
+        <div class="anime-side">
+            <img src="{{ anime.get('coverImage') or anime.get('poster') }}" alt="Poster" class="anime-poster">
         </div>
 
+        <!-- Right Column: Details -->
+        <div class="anime-main" style="min-width: 0;">
+            <div class="anime-title-block">
+                <h1 class="anime-title-main">{{ anime.name or anime.title }}</h1>
+                {% if anime.jname or anime.japanese_title %}
+                <p class="anime-title-sub">
+                    {{ anime.jname or anime.japanese_title }}
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="tag-list">
+                {% for genre in anime.get('genres', []) %}
+                <a href="/genre/{{ genre | lower | replace(' ', '-') }}" class="tag-pill genre-link">
+                    {{ genre }}
+                </a>
+                {% endfor %}
+
+                {% if anime.get('studios') and anime.get('studios')|length > 0 %}
+                <a href="/studio/{{ anime.get('studios')[0].id }}" class="tag-pill studio-link" style="background: rgba(255,255,255,0.1); color: var(--text-secondary); text-decoration: none; transition: all 0.2s;">
+                    Studio: {{ anime.get('studios')[0].name }}
+                </a>
+                <style>
+                    .studio-link:hover {
+                        background: rgba(255, 71, 87, 0.2) !important;
+                        color: #ff4757 !important;
+                    }
+                </style>
+                {% endif %}
+            </div>
+
+            <!-- Synopsis with basic clean up -->
+            <div class="anime-synopsis">
+                {{ (anime.get('description') or anime.get('synopsis') or 'No description available for this anime.')
+                | striptags }}
+            </div>
+
+            <!-- Franchise Seasons moved to sidebar -->
+
+            <!-- Characters section removed from watch page for compactness -->
+
     </div>
+
 </div>
 </div>
 {% endif %}
@@ -623,10 +435,8 @@
 <!-- ========================================== -->
 <!-- EPISODE REACTIONS & COMMENTS               -->
 <!-- ========================================== -->
-<div class="container" style="max-width: 1400px; padding: 0 15px; margin-top: 16px;">
-
     <!-- Episode Reaction Bar -->
-    <div class="episode-reaction-bar">
+    <div class="episode-reaction-bar" style="margin-top: 20px;">
         <span class="episode-reaction-label">Did you enjoy this episode?</span>
         <div class="episode-reaction-btns">
             <button class="reaction-btn" id="ep-like-btn" title="Like this episode">
@@ -718,7 +528,193 @@
         </div>
     </div>
 
-</div>
+    </div> <!-- End watch-player-column -->
+
+    <!-- Left Column: Sidebar (Episodes, Seasons, Related) -->
+    <div class="watch-sidebar-column">
+        <!-- Episodes Container -->
+        <div class="episode-sidebar">
+            <div class="episode-sidebar-header">
+                <div class="episode-sidebar-header-top">
+                    <span>Episodes</span>
+                    <div class="view-toggle">
+                        <button class="view-btn active" id="view-grid-btn" title="Grid View">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                        </button>
+                        <button class="view-btn" id="view-list-btn" title="List View">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="8" y1="6" x2="21" y2="6"></line>
+                                <line x1="8" y1="12" x2="21" y2="12"></line>
+                                <line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="episode-search-wrapper">
+                    <svg class="episode-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="episodeSearch" class="episode-search-input"
+                        placeholder="Search episode...">
+                </div>
+            </div>
+
+            <div class="episode-sidebar-list" id="episodeList" data-view="grid">
+                {% if episodes_unavailable or not episodes or not episodes.episodes %}
+                <div class="episodes-empty-state">
+                    <div class="ee-icon">
+                        {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        {% else %}
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <h3>
+                        {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
+                            Upcoming Anime
+                        {% else %}
+                            No Episodes Yet
+                        {% endif %}
+                    </h3>
+                    <p>
+                        {% if next_episode_schedule and next_episode_schedule.airingTimestamp %}
+                            Episodes will appear here once they start airing.
+                        {% else %}
+                            We couldn't find any episodes for this anime. Check back later!
+                        {% endif %}
+                    </p>
+                </div>
+                {% else %}
+                {% for ep in episodes.episodes %}
+                {% set is_current = (ep.number|string == episode_number|string) or (ep.number|int == Episode|int) %}
+                <a href="/watch/{{ anime_id or eps_title.split('?')[0] }}/ep-{{ ep.number }}"
+                    class="episode-sidebar-item {% if is_current %}current{% endif %} {% if ep.isFiller %}is-filler{% endif %}"
+                    data-number="{{ ep.number }}">
+                    <div class="episode-sidebar-num">{{ ep.number }}</div>
+                    <div class="episode-info">
+                        <div class="episode-title">
+                            {{ ep.title }}
+                            {% if ep.isFiller %}
+                            <span class="filler-badge">Filler</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Seasons Section (below episodes) -->
+        {% if anime %}
+        {% set all_seasons_sidebar = [] %}
+        {% set seen_sidebar_ids = [] %}
+
+        {% for p in anime.prequels %}
+        {% if (p.id|string) not in seen_sidebar_ids %}
+        {% set _ = all_seasons_sidebar.append(p) %}
+        {% set _ = seen_sidebar_ids.append(p.id|string) %}
+        {% endif %}
+        {% endfor %}
+
+        {% set current_entry_sb = {"id": anime.anilistId or anime.id, "name": anime.title or anime.name, "poster": anime.poster, "isCurrent": true, "type": anime.type or anime.get('stats', {}).get('type', 'TV')} %}
+        {% if (current_entry_sb.id|string) not in seen_sidebar_ids %}
+        {% set _ = all_seasons_sidebar.append(current_entry_sb) %}
+        {% set _ = seen_sidebar_ids.append(current_entry_sb.id|string) %}
+        {% endif %}
+
+        {% for s in anime.sequels %}
+        {% if (s.id|string) not in seen_sidebar_ids %}
+        {% set _ = all_seasons_sidebar.append(s) %}
+        {% set _ = seen_sidebar_ids.append(s.id|string) %}
+        {% endif %}
+        {% endfor %}
+
+        {% if all_seasons_sidebar|length > 1 %}
+        <div class="watch-sidebar-section">
+            <div class="watch-sidebar-section-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <span>Seasons</span>
+            </div>
+            <div class="watch-seasons-grid">
+                {% set ns = namespace(season_num=0) %}
+                {% for rel in all_seasons_sidebar %}
+                {% set season_type = (rel.type or 'TV')|upper %}
+                {% if season_type == 'MOVIE' %}
+                    {% set season_label = 'Movies' %}
+                {% elif season_type in ['OVA', 'ONA', 'SPECIAL', 'MUSIC'] %}
+                    {% set season_label = 'Specials' %}
+                {% else %}
+                    {% set ns.season_num = ns.season_num + 1 %}
+                    {% set season_label = 'Season ' ~ ns.season_num %}
+                {% endif %}
+                <a href="/anime/{{ rel.id }}" class="watch-season-card {% if rel.isCurrent is defined and rel.isCurrent %}current{% endif %}" title="{{ rel.name or rel.title }}">
+                    <div class="watch-season-card-bg" style="background-image: url('{{ rel.image or rel.poster or 'https://via.placeholder.com/200x300?text=No+Image' }}');"></div>
+                    <div class="watch-season-card-overlay">
+                        <span class="watch-season-card-label">{{ season_label }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Related Anime Section -->
+        {% set related_items = anime.get('recommendedAnimes', []) %}
+        {% if related_items and related_items|length > 0 %}
+        <div class="watch-sidebar-section">
+            <div class="watch-sidebar-section-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                    <rect x="1" y="3" width="22" height="5" rx="1" ry="1"></rect>
+                </svg>
+                <span>Related</span>
+            </div>
+            <div class="watch-related-list">
+                {% for rec in related_items[:8] %}
+                <a href="/anime/{{ rec.id }}" class="watch-related-item" title="{{ rec.name or rec.title }}">
+                    <img src="{{ rec.poster or 'https://via.placeholder.com/60x85?text=No+Image' }}" alt="{{ rec.name or rec.title }}" loading="lazy">
+                    <div class="watch-related-info">
+                        <span class="watch-related-title">{{ rec.name or rec.title }}</span>
+                        <span class="watch-related-meta">
+                            {% if rec.type %}{{ rec.type }}{% endif %}
+                            {% if rec.episodes_sub %} · {{ rec.episodes_sub }} eps{% endif %}
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div> <!-- End watch-sidebar-column -->
+
+</div> <!-- End watch-main -->
+</div> <!-- End watch-layout -->
+</div> <!-- End container -->
 
 <!-- GIF Picker Modal -->
 <div class="gif-picker-overlay" id="gif-picker-overlay">
@@ -901,6 +897,36 @@
     };
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script>
+    // Lock episode sidebar height to match video player area
+    (function() {
+        function syncSidebarHeight() {
+            var watchMain = document.querySelector('.watch-main');
+            var videoWrapper = document.querySelector('.video-wrapper');
+            var quickBar = document.querySelector('.watch-quick-bar');
+            if (!watchMain || !videoWrapper) return;
+
+            var totalH = videoWrapper.offsetHeight;
+            if (quickBar) totalH += quickBar.offsetHeight + 15; // 15px for margin
+
+            watchMain.style.setProperty('--player-area-height', totalH + 'px');
+        }
+
+        // Run on load and resize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                syncSidebarHeight();
+                window.addEventListener('resize', syncSidebarHeight);
+            });
+        } else {
+            syncSidebarHeight();
+            window.addEventListener('resize', syncSidebarHeight);
+        }
+
+        // Also run after images load (player dimensions may change)
+        window.addEventListener('load', syncSidebarHeight);
+    })();
+</script>
 {% endblock %}
 
 <!-- // TODO: Add a "Mark as Watched" button that appears after 80% of the video is watched, allowing users to manually mark

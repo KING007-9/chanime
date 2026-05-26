@@ -13,18 +13,29 @@
         align-items: start;
     }
 
-    .watch-main>.episode-sidebar {
+    .watch-sidebar-column {
         grid-column: 1;
-        grid-row: 1 / span 20;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
         position: sticky !important;
         top: 80px !important;
-        height: calc(100vh - 100px) !important;
-        max-height: calc(100vh - 100px) !important;
-        margin-top: 0 !important;
+        z-index: 10;
     }
 
-    .watch-main> :not(.episode-sidebar) {
+    .watch-player-column {
         grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .episode-sidebar {
+        /* Height is set dynamically by JS to match the video player */
+        max-height: var(--player-area-height, calc(100vh - 100px)) !important;
+        height: var(--player-area-height, calc(100vh - 100px)) !important;
+        margin-top: 0 !important;
     }
 
     .episode-sidebar-list {
@@ -47,7 +58,7 @@
     max-height: none;
     position: relative;
     top: 0;
-    overflow: visible;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -1719,18 +1730,18 @@ media-player:not(:defined) {
 }
 
 .anime-details-section {
-    margin-top: 30px;
+    margin-top: 20px;
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
-    padding: 25px;
+    padding: 20px;
     color: var(--text-primary);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .anime-details-grid {
     display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 25px;
+    grid-template-columns: 160px 1fr;
+    gap: 20px;
 }
 
 @media (max-width: 768px) {
@@ -3069,3 +3080,223 @@ body.lights-off-active .yz-player {
     }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+ *  Watch Sidebar Sections — Seasons & Related
+ * ═══════════════════════════════════════════════════════════════ */
+
+.watch-sidebar-section {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.watch-sidebar-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.watch-sidebar-section-header svg {
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+/* ── Seasons Grid ─────────────────────────────────── */
+.watch-seasons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 10px;
+    max-height: 260px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.watch-seasons-grid::-webkit-scrollbar {
+    width: 5px;
+}
+
+.watch-seasons-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.watch-season-card {
+    position: relative;
+    display: block;
+    height: 52px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.watch-season-card-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.4s ease;
+}
+
+.watch-season-card:hover .watch-season-card-bg {
+    transform: scale(1.08);
+}
+
+.watch-season-card-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.25s ease;
+}
+
+.watch-season-card:hover .watch-season-card-overlay {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.watch-season-card-label {
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0 4px;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.02em;
+}
+
+/* Active / Current Season Styling */
+.watch-season-card.current {
+    border-color: var(--accent, #805ad5);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb, 128, 90, 213), 0.3);
+}
+
+.watch-season-card.current .watch-season-card-overlay {
+    background: rgba(var(--accent-rgb, 128, 90, 213), 0.2);
+    border: 1px solid rgba(var(--accent-rgb, 128, 90, 213), 0.3);
+}
+
+.watch-season-card.current .watch-season-card-label {
+    color: #fff;
+    font-weight: 800;
+}
+
+/* ── Related Anime List ──────────────────────────── */
+.watch-related-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    gap: 2px;
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.watch-related-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.watch-related-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.watch-related-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.watch-related-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.watch-related-item img {
+    width: 40px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: var(--bg-elevated);
+}
+
+.watch-related-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.watch-related-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: inherit;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.watch-related-meta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+/* ── Mobile: Seasons & Related ────────────────────── */
+@media (max-width: 1024px) {
+    .watch-main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .watch-sidebar-column,
+    .watch-player-column {
+        display: contents;
+    }
+
+    .video-wrapper { order: 1; }
+    .watch-quick-bar { order: 2; }
+    #watch-countdown { order: 3; }
+    .episode-sidebar { order: 4; }
+    .watch-sidebar-section { order: 5; margin-top: 10px; }
+    .anime-details-section { order: 6; margin-top: 15px !important; }
+    .episode-reaction-bar { order: 7; margin-top: 15px !important; }
+    .comment-section { order: 8; margin-top: 15px !important; }
+
+    .watch-seasons-grid {
+        max-height: 200px;
+    }
+
+    .watch-related-list {
+        max-height: 200px;
+    }
+}
