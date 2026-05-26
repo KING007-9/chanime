@@ -783,17 +783,22 @@ def get_episodes_list_ajax(anime_id):
 
     from api.providers.miruro.episodes import PROVIDER_PRIORITY as _PP
 
+    allowed_hlss = ["kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "bee"]
+    sorted_providers = sorted(
+        [p for p in providers_map.keys() if p in allowed_hlss],
+        key=lambda p: _PP.index(p),
+    )
+    if (mal_id or anilist_id) and "zoro" not in sorted_providers:
+        sorted_providers.append("zoro")
+
     return jsonify({
         "success": True,
         "episodes": all_episodes.get("episodes", []),
         "totalEpisodes": all_episodes.get("totalEpisodes", 0),
         "providers_map": providers_map,
-        "default_provider": all_episodes.get("default_provider", "kiwi"),
+        "default_provider": "kiwi" if all_episodes.get("default_provider") == "zenith" else all_episodes.get("default_provider", "kiwi"),
         "dub_available": dub_available,
-        "sorted_providers": sorted(
-            [p for p in providers_map.keys() if p in _PP],
-            key=lambda p: _PP.index(p),
-        )
+        "sorted_providers": sorted_providers
     })
 
 

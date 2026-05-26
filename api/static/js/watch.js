@@ -1861,9 +1861,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchAndLoadSources(true);
 
             // Progressive background loading tasks to reduce load time
-            setTimeout(loadZenithProgressively, 50);
-            setTimeout(loadAnimeXProgressively, 100);
-            setTimeout(loadHindiProgressively, 150);
+            setTimeout(loadAnimeXProgressively, 50);
+            setTimeout(loadHindiProgressively, 100);
         } else {
             showNoSourcesMessage();
         }
