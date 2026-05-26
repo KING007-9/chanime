@@ -644,7 +644,7 @@ function onHlsFatal() {
 }
 
 // ── Provider fallback system ──────────────────────────────────────
-var _PROVIDER_PRIORITY = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','bee','zoro','anixtv'];
+var _PROVIDER_PRIORITY = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','ax-beep','bee','zoro','anixtv'];
 var PROVIDER_DISPLAY_NAMES = {
     "zenith":    "Zenith",
     "kiwi":      "Miku",
@@ -653,6 +653,7 @@ var PROVIDER_DISPLAY_NAMES = {
     "ax-shiro":  "Shiro",
     "ax-yuki":   "Yuki",
     "ax-zen":    "Senku",
+    "ax-beep":   "Cosmic",
     "bee":       "Hachi",
     "zoro":      "Megaplay",
     "anixtv":    "Hindi",
@@ -1039,6 +1040,7 @@ function switchLanguage(lang) {
         b.classList.toggle('active', bl === lang.toLowerCase());
     });
     document.querySelectorAll('.server-pill.unavailable').forEach(function(p) { p.classList.remove('unavailable'); });
+    renderServerPills();
     fetchAndLoadSources();
 }
 
@@ -1500,7 +1502,7 @@ function initWatchQuickBar() {
 // Progressive background discovery functions
 function loadZenithProgressively() {
     var cfg = window.WATCH_CONFIG || {};
-    if (!cfg.animeId || !String(cfg.animeId).match(/^\d+$/)) return;
+    if (!cfg.animeId) return;
     
     fetch('/api/watch/' + cfg.animeId + '/episodes/zenith')
     .then(function(r) { return r.json(); })
@@ -1529,7 +1531,7 @@ function loadZenithProgressively() {
 
 function loadAnimeXProgressively() {
     var cfg = window.WATCH_CONFIG || {};
-    if (!cfg.animeId || !String(cfg.animeId).match(/^\d+$/)) return;
+    if (!cfg.animeId) return;
     
     fetch('/api/watch/' + cfg.animeId + '/episodes/animex')
     .then(function(r) { return r.json(); })
@@ -1548,7 +1550,7 @@ function loadAnimeXProgressively() {
                 
                 state.providers = state.providers || [];
                 if (!state.providers.includes(providerKey)) {
-                    var _PP = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','bee','zoro','anixtv'];
+                    var _PP = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','ax-beep','bee','zoro','anixtv'];
                     state.providers.push(providerKey);
                     state.providers.sort(function(a, b) {
                         var idxA = _PP.indexOf(a) !== -1 ? _PP.indexOf(a) : 99;
@@ -1626,6 +1628,7 @@ function renderServerPills() {
         "ax-shiro":  {"hls": true,  "embed": false},
         "ax-yuki":   {"hls": true,  "embed": false},
         "ax-zen":    {"hls": true,  "embed": false},
+        "ax-beep":   {"hls": true,  "embed": false},
         "bee":       {"hls": true,  "embed": false},
         "zoro":      {"hls": false, "embed": true},
         "anixtv":    {"hls": false, "embed": true},
@@ -1637,7 +1640,8 @@ function renderServerPills() {
 
     // Filter helper to ensure we only show servers that have the current episode
     function hasEpisodeForProvider(p) {
-        if (p === 'zoro' || p === 'anixtv') return true;
+        if (p === 'anixtv') return lang === 'dub';
+        if (p === 'zoro') return true;
         
         if (!map[p] || !map[p].episodes) return false;
         var eps = map[p].episodes[lang] || [];

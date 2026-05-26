@@ -35,6 +35,37 @@ INFO_CACHE = {}
 HINDI_CACHE = {}
 SCHEDULE_CACHE = {}
 
+def _resolve_anilist_id(anime_id_clean):
+    """Resolve numeric AniList ID from numeric string or slug string."""
+    if anime_id_clean.isdigit():
+        return int(anime_id_clean)
+    anime_info = INFO_CACHE.get(anime_id_clean)
+    if not anime_info:
+        try:
+            anime_info = asyncio.run(current_app.ha_scraper.get_anime_info(anime_id_clean))
+            if anime_info:
+                INFO_CACHE[anime_id_clean] = anime_info
+        except Exception:
+            pass
+    if anime_info and isinstance(anime_info, dict):
+        anime = anime_info.get("info", anime_info)
+        if isinstance(anime, dict):
+            al_id = anime.get("anilistId") or anime.get("alID")
+            if al_id:
+                try:
+                    return int(al_id)
+                except (ValueError, TypeError):
+                    pass
+    return None
+
+def _resolve_fetch_id(anime_id_clean, anilist_id=None):
+    """Get the consistent cache key for EPS_CACHE."""
+    if anime_id_clean.isdigit():
+        return anime_id_clean
+    al_id = anilist_id or _resolve_anilist_id(anime_id_clean)
+    return str(al_id) if al_id else anime_id_clean
+
+
 def _get_preferred_lang():
     """Get the user's preferred language from cookie → session → default."""
     lang = request.cookies.get("preferred_language")
@@ -530,11 +561,12 @@ def clear_watch_cache():
         return jsonify({"success": False, "error": "Missing anime_id"}), 400
     
     clean_id = str(anime_id).split("?", 1)[0]
+    fetch_id = _resolve_fetch_id(clean_id)
     
     # Remove from global cache
     removed = 0
-    if clean_id in EPS_CACHE:
-        del EPS_CACHE[clean_id]
+    if fetch_id in EPS_CACHE:
+        del EPS_CACHE[fetch_id]
         removed += 1
     
     # Also clean up any session junk left over from previous broken implementation
@@ -593,15 +625,15 @@ def get_watch_sources():
                 if title:
                     anime_slug = re.sub(r'[^\w\s-]', '', title.lower()).replace(' ', '-').strip('-')
 
-    fetch_id = str(anilist_id) if anilist_id else anime_id_clean
+    fetch_id = _resolve_fetch_id(anime_id_clean, anilist_id)
 
     # Fetch episodes with anime_slug for anidap provider discovery
     try:
-        all_episodes = EPS_CACHE.get(str(fetch_id))
+        all_episodes = EPS_CACHE.get(fetch_id)
         if not all_episodes:
-            all_episodes = asyncio.run(current_app.ha_scraper.episodes(str(fetch_id), anime_slug))
+            all_episodes = asyncio.run(current_app.ha_scraper.episodes(fetch_id, anime_slug))
             if all_episodes and all_episodes.get("providers_map"):
-                EPS_CACHE[str(fetch_id)] = all_episodes
+                EPS_CACHE[fetch_id] = all_episodes
     except Exception:
         return jsonify({"error": "Failed to fetch episodes"}), 500
 
@@ -756,16 +788,16 @@ def get_episodes_list_ajax(anime_id):
         if title:
             anime_slug = re.sub(r'[^\w\s-]', '', title.lower()).replace(' ', '-').strip('-')
 
-    fetch_id = anime_id_clean if anime_id_clean.isdigit() else (str(anilist_id) if anilist_id else anime_id_clean)
+    fetch_id = _resolve_fetch_id(anime_id_clean, anilist_id)
 
     # Fetch fast using only Miruro episodes!
     try:
-        all_episodes = EPS_CACHE.get(str(fetch_id))
+        all_episodes = EPS_CACHE.get(fetch_id)
         if not all_episodes:
             all_episodes = asyncio.run(current_app.ha_scraper.miruro.episodes(fetch_id, anime_slug))
             if all_episodes and all_episodes.get("providers_map"):
                 # Seed the cache so other routes can use it / write to it
-                EPS_CACHE[str(fetch_id)] = all_episodes
+                EPS_CACHE[fetch_id] = all_episodes
     except Exception as e:
         current_app.logger.error(f"[AJAX Episodes] Error: {e}")
         all_episodes = None
@@ -785,7 +817,7 @@ def get_episodes_list_ajax(anime_id):
 
     from api.providers.miruro.episodes import PROVIDER_PRIORITY as _PP
 
-    allowed_hlss = ["zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "bee"]
+    allowed_hlss = ["zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "ax-beep", "bee"]
     sorted_providers = sorted(
         [p for p in providers_map.keys() if p in allowed_hlss],
         key=lambda p: _PP.index(p),
@@ -818,21 +850,22 @@ def get_zenith_episodes(anime_id):
     if not anime_title:
         anime_title = anime_id_clean.replace("-", " ").title()
 
-    if not anime_id_clean.isdigit():
+    anilist_id = _resolve_anilist_id(anime_id_clean)
+    if not anilist_id:
         return jsonify({"success": False, "error": "Zenith requires numeric AniList ID"}), 400
 
     try:
-        zenith_blocks = asyncio.run(current_app.ha_scraper.zenith.build_provider_blocks(int(anime_id_clean), anime_title))
+        zenith_blocks = asyncio.run(current_app.ha_scraper.zenith.build_provider_blocks(anilist_id, anime_title))
         
         # Progressive write-through cache!
         if zenith_blocks:
-            fetch_id = anime_id_clean
-            all_episodes = EPS_CACHE.get(str(fetch_id))
+            fetch_id = _resolve_fetch_id(anime_id_clean, anilist_id)
+            all_episodes = EPS_CACHE.get(fetch_id)
             if all_episodes:
                 providers_map = all_episodes.setdefault("providers_map", {})
                 for server_id, block in zenith_blocks.items():
                     providers_map[server_id] = block
-                EPS_CACHE[str(fetch_id)] = all_episodes
+                EPS_CACHE[fetch_id] = all_episodes
 
         return jsonify({
             "success": True,
@@ -857,21 +890,22 @@ def get_animex_episodes(anime_id):
     if not anime_title:
         anime_title = anime_id_clean.replace("-", " ").title()
 
-    if not anime_id_clean.isdigit():
+    anilist_id = _resolve_anilist_id(anime_id_clean)
+    if not anilist_id:
         return jsonify({"success": False, "error": "AnimeX requires numeric AniList ID"}), 400
 
     try:
-        ax_blocks = asyncio.run(current_app.ha_scraper.animex.build_provider_blocks(int(anime_id_clean), anime_title))
+        ax_blocks = asyncio.run(current_app.ha_scraper.animex.build_provider_blocks(anilist_id, anime_title))
         
         # Progressive write-through cache!
         if ax_blocks:
-            fetch_id = anime_id_clean
-            all_episodes = EPS_CACHE.get(str(fetch_id))
+            fetch_id = _resolve_fetch_id(anime_id_clean, anilist_id)
+            all_episodes = EPS_CACHE.get(fetch_id)
             if all_episodes:
                 providers_map = all_episodes.setdefault("providers_map", {})
                 for server_id, block in ax_blocks.items():
                     providers_map[f"ax-{server_id}"] = block
-                EPS_CACHE[str(fetch_id)] = all_episodes
+                EPS_CACHE[fetch_id] = all_episodes
 
         return jsonify({
             "success": True,
