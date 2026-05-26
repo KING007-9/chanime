@@ -2834,13 +2834,16 @@ h6 {
    Loading States
    ============================================ */
 .skeleton {
-    background: linear-gradient(90deg,
-            var(--bg-surface) 25%,
-            var(--bg-surface-hover) 50%,
-            var(--bg-surface) 75%);
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.03) 25%,
+        rgba(255, 255, 255, 0.09) 37%,
+        rgba(255, 255, 255, 0.03) 63%
+    );
     background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+    animation: shimmer 1.4s ease infinite;
     border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
 @keyframes shimmer {
@@ -4729,14 +4732,14 @@ h6 {
 }
 
 /* ============================================
-   Skeleton Loaders
+   Skeleton Loaders (High-Fidelity Shimmer UI)
    ============================================ */
 .skeleton-container {
     position: absolute;
     inset: 0;
     z-index: 100;
     background: var(--bg-primary);
-    transition: opacity 0.4s ease, visibility 0.4s ease;
+    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.5s ease;
     pointer-events: none;
 }
 
@@ -4746,32 +4749,40 @@ h6 {
 }
 
 .skeleton {
-    background: var(--bg-surface);
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.03) 25%,
+        rgba(255, 255, 255, 0.09) 37%,
+        rgba(255, 255, 255, 0.03) 63%
+    );
+    background-size: 200% 100%;
     position: relative;
     overflow: hidden;
-    animation: skeleton-pulse 1.5s ease-in-out infinite alternate;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
-@keyframes skeleton-pulse {
+@keyframes skeleton-shimmer {
     0% {
-        opacity: 0.6;
+        background-position: 200% 0;
     }
     100% {
-        opacity: 1;
+        background-position: -200% 0;
     }
 }
 
 .skeleton-text {
-    height: 14px;
+    height: 12px;
     border-radius: var(--radius-sm);
     margin-bottom: 8px;
 }
 
 .skeleton-title {
-    height: 24px;
+    height: 28px;
     width: 60%;
     margin-bottom: 16px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
 }
 
 .skeleton-card {
@@ -4783,14 +4794,16 @@ h6 {
 .skeleton-poster {
     width: 100%;
     aspect-ratio: 2/3;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .skeleton-spotlight {
     width: 100%;
-    height: 500px;
+    height: clamp(300px, 45vh, 500px);
     border-radius: var(--radius-xl);
     margin-bottom: var(--space-xl);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .skeleton-tabs {
@@ -4800,13 +4813,15 @@ h6 {
 }
 
 .skeleton-tab {
-    height: 40px;
+    height: 38px;
     width: 120px;
     border-radius: var(--radius-full);
 }
 
 .skeleton-info-hero {
-    height: 400px;
+    height: clamp(280px, 35vh, 400px);
     width: 100%;
     margin-bottom: var(--space-xl);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
 }
