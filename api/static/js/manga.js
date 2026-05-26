@@ -325,6 +325,9 @@
         let searchQuery = '';
         let filterType = 'all'; // 'all' | 'unread' | 'read'
         let sortDirection = 'desc'; // 'desc' | 'asc'
+        try {
+            sortDirection = localStorage.getItem('yume_manga_chapter_sort_dir') || 'desc';
+        } catch (e) {}
         let currentPage = 1;
         const itemsPerPage = 50;
 
@@ -351,6 +354,15 @@
 
         const sortBtn = document.getElementById('chapter-sort-btn');
         if (sortBtn) {
+            // Apply initial UI text based on loaded direction
+            if (sortDirection === 'asc') {
+                sortBtn.classList.remove('desc');
+                sortBtn.querySelector('span').textContent = 'Oldest First';
+            } else {
+                sortBtn.classList.add('desc');
+                sortBtn.querySelector('span').textContent = 'Newest First';
+            }
+
             sortBtn.addEventListener('click', () => {
                 if (sortDirection === 'desc') {
                     sortDirection = 'asc';
@@ -361,6 +373,9 @@
                     sortBtn.classList.add('desc');
                     sortBtn.querySelector('span').textContent = 'Newest First';
                 }
+                try {
+                    localStorage.setItem('yume_manga_chapter_sort_dir', sortDirection);
+                } catch (e) {}
                 currentPage = 1; // Reset to page 1
                 renderChapters();
             });
