@@ -15,7 +15,8 @@ from ...utils.mailer import send_reset_code_email
 from ...models.user import (
     create_user, get_user, user_exists, email_exists, get_user_by_id,
     get_user_by_email, change_password,
-    store_reset_code, verify_reset_code, clear_reset_code, reset_password
+    store_reset_code, verify_reset_code, clear_reset_code, reset_password,
+    delete_user
 )
 from ...core.caching import clear_user_cache
 from ...core.config import Config
@@ -367,3 +368,36 @@ def reset_password_endpoint():
         return jsonify({'success': True, 'message': 'Password reset successful! You can now sign in.'}), 200
 
     return jsonify({'success': False, 'message': 'Failed to reset password. Please try again.'}), 500
+
+
+@auth_api_bp.route('/delete-account', methods=['POST'])
+def delete_account():
+    """Delete current user account"""
+    if 'username' not in session or '_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in.'}), 401
+        
+    try:
+        user_id = session.get('_id')
+        
+        # Perform user deletion
+        success = delete_user(user_id)
+        if success:
+            # Clear user cache
+            clear_user_cache(int(user_id))
+            
+            # Clear session
+            username = session.get('username')
+            session.clear()
+            
+            # Create response and explicitly delete the session cookie
+            response = make_response(jsonify({'success': True, 'message': 'Account deleted successfully.'}))
+            response.delete_cookie('session')
+            
+            current_app.logger.info(f"User {username} deleted their account successfully (ID: {user_id})")
+            return response, 200
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete account. User not found.'}), 404
+            
+    except Exception as e:
+        current_app.logger.error(f"Error deleting account: {e}")
+        return jsonify({'success': False, 'message': 'An error occurred while deleting your account.'}), 500

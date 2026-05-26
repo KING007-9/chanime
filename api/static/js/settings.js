@@ -81,20 +81,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Clear history
-    const clearBtn = document.getElementById('clear-history');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            if (!confirm('Are you sure you want to clear your watch history? This cannot be undone.')) return;
-
-            // Clear local storage watch data
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('yume_watch_') || key.startsWith('yume_progress_')) {
-                    localStorage.removeItem(key);
+    // Delete Account
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+    if (deleteAccountBtn) {
+        deleteAccountBtn.addEventListener('click', async function () {
+            if (!confirm('WARNING: Are you absolutely sure you want to delete your YumeZone account? This action is permanent, completely irreversible, and will delete all your watchlist data, settings, and profile.')) return;
+            if (!confirm('FINAL CONFIRMATION: Are you really sure you want to permanently delete your account? You cannot recover it under any circumstances.')) return;
+            
+            try {
+                const response = await fetch('/api/auth/delete-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear local storage data for clean slate
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('yume_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                    alert('Your account has been deleted successfully. We are sorry to see you go!');
+                    window.location.href = '/';
+                } else {
+                    alert(data.message || 'Failed to delete account.');
                 }
-            });
-
-            alert('Watch history cleared!');
+            } catch (e) {
+                alert('A network error occurred. Please try again.');
+            }
         });
     }
 

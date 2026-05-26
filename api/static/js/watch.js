@@ -134,6 +134,7 @@ function buildCustomPlayer(playerArea, video) {
   <div id="yz-sett-main">
     <button class="yz-sett-row" id="yz-speed-row"><span>Speed</span><span id="yz-cur-speed" class="yz-sett-val">1x</span></button>
     <button class="yz-sett-row" id="yz-qual-row" style="display:none"><span>Quality</span><span id="yz-cur-qual" class="yz-sett-val">Auto</span></button>
+    <button class="yz-sett-row" id="yz-skip-row"><span>Skip Intro/Outro</span><span id="yz-cur-skip" class="yz-sett-val">Off</span></button>
   </div>
   <div id="yz-sett-speed" style="display:none">
     <button class="yz-sett-back" id="yz-speed-back">&#8592; Speed</button>
@@ -195,16 +196,45 @@ function attachPlayerControls(shell, vid) {
           curQualLbl  = g('yz-cur-qual'),  qualRow   = g('yz-qual-row'),
           fsBtn       = g('yz-fs-btn'),    overlay   = g('yz-overlay'),
           pauseFlash  = g('yz-pause-flash'),back10   = g('yz-back10'),
-          fwd10       = g('yz-fwd10');
+          fwd10       = g('yz-fwd10'),
+          skipRow     = g('yz-skip-row'),  curSkipLbl = g('yz-cur-skip');
 
     const cfg = window.WATCH_CONFIG || {};
     let skipTarget = null;
     let _isDragging = false;
+    let _lastSkippedRange = null;
 
     // Skip intro/outro
     vid.addEventListener('timeupdate', () => {
         if (!skipBtn) return;
         const cur = vid.currentTime, i = globalTimestamps.intro, o = globalTimestamps.outro;
+
+        // Auto skip behavior
+        const autoSkipEnabled = localStorage.getItem('yume_skip_intro') === 'true';
+        if (autoSkipEnabled) {
+            if (i && cur >= i.start && cur < i.end) {
+                if (_lastSkippedRange !== 'intro') {
+                    _lastSkippedRange = 'intro';
+                    vid.currentTime = i.end;
+                    showToast('Auto-skipped Intro', 'success');
+                }
+                return;
+            }
+            if (o && cur >= o.start && cur < o.end) {
+                if (_lastSkippedRange !== 'outro') {
+                    _lastSkippedRange = 'outro';
+                    vid.currentTime = o.end;
+                    showToast('Auto-skipped Outro', 'success');
+                }
+                return;
+            }
+        }
+
+        // Reset last skipped range if we are outside both intro and outro
+        if ((!i || cur < i.start || cur >= i.end) && (!o || cur < o.start || cur >= o.end)) {
+            _lastSkippedRange = null;
+        }
+
         let found = false;
         if (i && cur >= i.start && cur <= i.end)       { skipBtn.textContent='Skip Intro'; skipBtn.style.display='block'; skipTarget=i.end; found=true; }
         else if (o && cur >= o.start && cur <= o.end)  { skipBtn.textContent='Skip Outro'; skipBtn.style.display='block'; skipTarget=o.end; found=true; }
@@ -385,6 +415,20 @@ function attachPlayerControls(shell, vid) {
     g('yz-qual-back')?.addEventListener('click',  ()=>showSettPage('main'));
     document.addEventListener('click', e=>{ if(settPanel&&!settPanel.contains(e.target)&&!settBtn?.contains(e.target)) settPanel.style.display='none'; }, true);
     settPanel?.addEventListener('click', e=>e.stopPropagation());
+
+    // Initialize Auto Skip setting
+    if (curSkipLbl) {
+        const autoSkip = localStorage.getItem('yume_skip_intro') === 'true';
+        curSkipLbl.textContent = autoSkip ? 'On' : 'Off';
+    }
+    skipRow?.addEventListener('click', e => {
+        e.stopPropagation();
+        const current = localStorage.getItem('yume_skip_intro') === 'true';
+        const newVal = !current;
+        localStorage.setItem('yume_skip_intro', newVal ? 'true' : 'false');
+        if (curSkipLbl) curSkipLbl.textContent = newVal ? 'On' : 'Off';
+        showToast('Auto Skip ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
 
     // Speed options
     if (speedOpts) {
