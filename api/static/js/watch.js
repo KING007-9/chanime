@@ -1163,6 +1163,19 @@ function fetchAndLoadSources(isAutoFallback) {
         if (window.WATCH_CONFIG) {
             window.WATCH_CONFIG.intro = globalTimestamps.intro;
             window.WATCH_CONFIG.outro = globalTimestamps.outro;
+            if (data.anime_name && (!window.WATCH_CONFIG.animeName || /^\d+$/.test(window.WATCH_CONFIG.animeName))) {
+                window.WATCH_CONFIG.animeName = data.anime_name;
+                document.title = `${data.anime_name}, Episode ${cfg.episodeNumber} - YumeZone`;
+                var titleEl = document.getElementById('watch-episode-title');
+                if (titleEl) {
+                    var epTitle = '';
+                    if (state.episodesList) {
+                        var ep = state.episodesList.find(e => String(e.number) === String(cfg.episodeNumber));
+                        if (ep) epTitle = ep.title || '';
+                    }
+                    titleEl.textContent = `${cfg.episodeNumber}. ${epTitle || data.anime_name || 'Episode'}`;
+                }
+            }
         }
 
         resetWatchedFlag();
@@ -2180,6 +2193,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Populate WATCH_CONFIG properties
             if (window.WATCH_CONFIG) {
                 window.WATCH_CONFIG.providers = state.providers;
+                if (data.anime_name && (!window.WATCH_CONFIG.animeName || /^\d+$/.test(window.WATCH_CONFIG.animeName))) {
+                    window.WATCH_CONFIG.animeName = data.anime_name;
+                    
+                    // Update browser title
+                    document.title = `${data.anime_name}, Episode ${cfg.episodeNumber} - YumeZone`;
+                    
+                    // Update episode title heading
+                    var titleEl = document.getElementById('watch-episode-title');
+                    if (titleEl) {
+                        var epTitle = '';
+                        var ep = data.episodes.find(e => String(e.number) === String(cfg.episodeNumber));
+                        if (ep) epTitle = ep.title || '';
+                        titleEl.textContent = `${cfg.episodeNumber}. ${epTitle || data.anime_name || 'Episode'}`;
+                    }
+                }
             }
 
             // Render UI

@@ -698,8 +698,21 @@ def get_watch_sources():
     if selected_server and has_sources:
         session["last_used_server"] = selected_server
 
+    anime_title = ""
+    if anime_info and isinstance(anime_info, dict):
+        info = anime_info.get("info", anime_info)
+        if isinstance(info, dict):
+            anime_title = info.get("name") or info.get("title") or ""
+            
+    if not anime_title and all_episodes:
+        anime_title = all_episodes.get("title") or ""
+        
+    if not anime_title and not anime_id_clean.isdigit():
+        anime_title = anime_id_clean.replace("-", " ").title()
+
     response_data = {
         "video_link": video_data["video_link"],
+        "anime_name": anime_title,
         "subtitles": video_data["subtitle_tracks"],
         "intro": video_data["intro"],
         "outro": video_data["outro"],
@@ -829,8 +842,22 @@ def get_episodes_list_ajax(anime_id):
     if (mal_id or anilist_id) and "zoro" not in sorted_providers:
         sorted_providers.append("zoro")
 
+    anime_title = ""
+    if all_episodes:
+        anime_title = all_episodes.get("title") or ""
+    
+    if not anime_title and anime_info:
+        if isinstance(anime_info, dict):
+            info = anime_info.get("info", anime_info)
+            if isinstance(info, dict):
+                anime_title = info.get("name") or info.get("title") or ""
+                
+    if not anime_title and not anime_id_clean.isdigit():
+        anime_title = anime_id_clean.replace("-", " ").title()
+
     return jsonify({
         "success": True,
+        "anime_name": anime_title,
         "episodes": all_episodes.get("episodes", []),
         "totalEpisodes": all_episodes.get("totalEpisodes", 0),
         "providers_map": providers_map,
