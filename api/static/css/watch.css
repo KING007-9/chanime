@@ -3461,6 +3461,7 @@ body.lights-off-active .yz-player {
     padding: 10px;
     max-height: 260px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
 }
@@ -3551,6 +3552,7 @@ body.lights-off-active .yz-player {
     gap: 2px;
     max-height: 320px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
 }

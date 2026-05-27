@@ -1911,6 +1911,32 @@ function renderServerPills() {
     }
 }
 
+function scrollActiveEpisodeIntoView(item, container) {
+    if (!item || !container) return;
+    
+    // On mobile screens, do NOT scroll the whole page.
+    const isMobileViewport = window.innerWidth <= 768;
+    if (isMobileViewport) {
+        return;
+    }
+    
+    // For desktop scrollable sidebar container, scroll to active item cleanly without page scroll
+    try {
+        const containerRect = container.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        const relativeTop = itemRect.top - containerRect.top + container.scrollTop;
+        const targetScroll = relativeTop - (container.clientHeight / 2) + (item.clientHeight / 2);
+        
+        container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+        });
+    } catch(e) {
+        // Fallback
+        container.scrollTop = item.offsetTop - container.offsetTop - (container.clientHeight / 2) + (item.clientHeight / 2);
+    }
+}
+
 function renderEpisodeSidebar(episodes) {
     const listContainer = document.getElementById('episodeList');
     if (!listContainer) return;
@@ -1962,7 +1988,7 @@ function renderEpisodeSidebar(episodes) {
     // Trigger scroll to active episode if needed
     setTimeout(function() {
         const activeItem = listContainer.querySelector('.episode-sidebar-item.current');
-        if (activeItem) activeItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (activeItem) scrollActiveEpisodeIntoView(activeItem, listContainer);
     }, 200);
 }
 
@@ -2099,7 +2125,7 @@ function navigateToEpisode(epNum, isPopState) {
                 const isCurrent = String(item.dataset.number) === String(targetEpNum);
                 item.classList.toggle('current', isCurrent);
                 if (isCurrent) {
-                    item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    scrollActiveEpisodeIntoView(item, listContainer);
                 }
             });
         }
