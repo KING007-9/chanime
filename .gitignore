@@ -225,3 +225,6 @@ worker.js
 kurovexa
 test*.py
 tests/
+node_modules/
+.vercel/
+.env.local
