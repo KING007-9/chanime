@@ -9,6 +9,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/info.css') }}">
 <script src="{{ url_for('static', filename='js/music.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/watch_order.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -54,11 +55,38 @@
                 <!-- Poster -->
                 <div class="anime-poster">
                     <img src="{{ anime.poster or anime.image }}" alt="{{ anime.name or anime.title }}">
+                    
+                    <div class="quick-meta-list">
+                        {% if anime.aired_start %}
+                        <div class="quick-meta-item">
+                            <span class="label">Started</span>
+                            <span class="value">{{ anime.aired_start }}</span>
+                        </div>
+                        {% endif %}
+                        {% if anime.aired_end %}
+                        <div class="quick-meta-item">
+                            <span class="label">Finished</span>
+                            <span class="value">{{ anime.aired_end }}</span>
+                        </div>
+                        {% elif anime.status == 'Currently Airing' %}
+                        <div class="quick-meta-item">
+                            <span class="label">Finished</span>
+                            <span class="value">?</span>
+                        </div>
+                        {% endif %}
+                        {% if anime.stats and anime.stats.source %}
+                        <div class="quick-meta-item">
+                            <span class="label">Source</span>
+                            <span class="value">{{ anime.stats.source }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <!-- Details -->
                 <div class="anime-details">
                     <h1 class="anime-title">{{ anime.name or anime.title }}</h1>
+
                     {% if anime.jname or anime.japanese_title %}
                     <p class="anime-alt-title">{{ anime.jname or anime.japanese_title }}</p>
                     {% endif %}
@@ -67,11 +95,9 @@
                     <div class="anime-stats">
                         {% if anime.stats and anime.stats.rating %}
                         <div class="stat-item">
-                            <div class="stat-value" style="color: var(--warning);">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"
-                                    style="vertical-align: middle;">
-                                    <polygon
-                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            <div class="stat-value">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" style="vertical-align: middle; margin-right: 2px;">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                 </svg>
                                 {{ (anime.stats.rating|float / 10) | round(1) }}
                             </div>
@@ -81,19 +107,39 @@
                         {% if anime.stats and anime.stats.type %}
                         <div class="stat-item">
                             <div class="stat-value">{{ anime.stats.type }}</div>
-                            <div class="stat-label">Type</div>
+                            <div class="stat-label">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                                    <line x1="7" y1="2" x2="7" y2="22"></line>
+                                    <line x1="17" y1="2" x2="17" y2="22"></line>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                </svg>
+                                Type
+                            </div>
                         </div>
                         {% endif %}
                         {% if anime.stats and anime.stats.duration %}
                         <div class="stat-item">
                             <div class="stat-value">{{ anime.stats.duration }}</div>
-                            <div class="stat-label">Duration</div>
+                            <div class="stat-label">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                Duration
+                            </div>
                         </div>
                         {% endif %}
                         {% if anime.status %}
                         <div class="stat-item">
-                            <div class="stat-label">Status</div>
-                            <div class="stat-value">{{ anime.status }}</div>
+                            <div class="stat-value">{{ anime.status | title }}</div>
+                            <div class="stat-label">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                                Status
+                            </div>
                         </div>
                         {% endif %}
                     </div>
@@ -209,6 +255,14 @@
                     <!-- Genres -->
                     {% if anime.genres %}
                     <div class="anime-genres">
+                        {% if anime.studios and anime.studios|length > 0 %}
+                        <a href="/studio/{{ anime.studios[0].id }}" class="genre-tag studio-tag">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; vertical-align: middle;">
+                                <path d="M3 21v-4m0 0V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            </svg>
+                            {{ anime.studios[0].name }}
+                        </a>
+                        {% endif %}
                         {% for genre in anime.genres %}
                         <a href="/genre/{{ genre | lower | replace(' ', '-') }}" class="genre-tag">{{ genre }}</a>
                         {% endfor %}
@@ -298,38 +352,6 @@
                         <p>{{ anime.description or anime.synopsis or 'No description available.' }}</p>
                     </div>
 
-                    <!-- Additional Info -->
-                    {% if anime.moreInfo %}
-                    <div class="anime-more-info" style="margin-bottom: var(--space-xl);">
-                        <div
-                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
-                            {% if anime.moreInfo.studios and anime.moreInfo.studios | length > 0 %}
-                            <div>
-                                <span class="text-muted text-sm">Studios:</span>
-                                <span>{{ anime.moreInfo.studios | join(', ') }}</span>
-                            </div>
-                            {% endif %}
-                            {% if anime.moreInfo.producers and anime.moreInfo.producers | length > 0 %}
-                            <div>
-                                <span class="text-muted text-sm">Producers:</span>
-                                <span>{{ anime.moreInfo.producers | join(', ') }}</span>
-                            </div>
-                            {% endif %}
-                            {% if anime.moreInfo.premiered %}
-                            <div>
-                                <span class="text-muted text-sm">Premiered:</span>
-                                <span>{{ anime.moreInfo.premiered }}</span>
-                            </div>
-                            {% endif %}
-                            {% if anime.moreInfo.aired %}
-                            <div>
-                                <span class="text-muted text-sm">Aired:</span>
-                                <span>{{ anime.moreInfo.aired }}</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -370,6 +392,13 @@
                 <circle cx="18" cy="16" r="3" />
             </svg>
             Music
+        </button>
+        <button class="info-tab-btn" data-tab="watch-order">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="vertical-align: -2px; margin-right: 4px;">
+                <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Watch Order
         </button>
     </div>
 
@@ -428,7 +457,7 @@
                     {% else %}
                     <div class="season-badge"
                         style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1);">
-                        {{ (entry.relation or "SEASON") | upper }}</div>
+                        {{ entry.badge or (entry.relation or "SEASON") | upper }}</div>
                     {% endif %}
                     <img src="{{ entry.poster or entry.image }}" alt="{{ entry.name or entry.title }}" loading="lazy">
                     <div class="season-overlay">
@@ -612,6 +641,39 @@
         </section>
     </div>
 
+    <!-- ===== Tab: Watch Order ===== -->
+    <div class="info-tab-content" id="tab-watch-order" data-anilist-id="{{ anime.anilistId or current_season_id }}">
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Watch Order
+                </h2>
+            </div>
+
+            <!-- Loading State -->
+            <div id="watch-order-loading" class="music-loading">
+                <div class="music-loading-spinner"></div>
+                <p>Loading watch order...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="watch-order-empty" class="music-empty" style="display: none;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                <p>No watch order found for this anime.</p>
+            </div>
+
+            <!-- Timeline Container -->
+            <div id="watch-order-container" class="watch-order-container" style="display: none;">
+                <!-- Timeline items will be dynamically injected here -->
+            </div>
+        </section>
+    </div>
+
 </div>
 
 <!-- ===== Watchlist Editor Modal ===== -->
@@ -726,6 +788,67 @@
 
         let isOnList = false;   // tracks whether entry already exists
 
+        // ── Client-side AniList OAuth Token & ID Caching ───────────────────────────
+        let accessToken = null;
+        let viewerId = null;
+
+        async function initAccessToken() {
+            try {
+                const response = await fetch('/api/watchlist/token');
+                const data = await response.json();
+                if (data.access_token) {
+                    accessToken = data.access_token;
+                    viewerId = sessionStorage.getItem('__anilist_viewer_id');
+                    if (!viewerId) {
+                        const viewerData = await anilistRequest(`query { Viewer { id } }`);
+                        if (viewerData && viewerData.data && viewerData.data.Viewer) {
+                            viewerId = viewerData.data.Viewer.id;
+                            sessionStorage.setItem('__anilist_viewer_id', viewerId);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error fetching AniList access token:', e);
+            }
+        }
+
+        async function ensureAuth() {
+            if (!accessToken || !viewerId) {
+                await initAccessToken();
+            }
+            return !!accessToken;
+        }
+
+        // ── Client-side Direct AniList Request Helper ──────────────────────────────
+        async function anilistRequest(query, variables = {}) {
+            if (!accessToken) return null;
+            try {
+                const response = await fetch('https://graphql.anilist.co', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ query, variables })
+                });
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('Retry-After') || '60';
+                    return { _rate_limited: true, _retry_after: parseInt(retryAfter) || 60 };
+                }
+                if (!response.ok) return null;
+                const data = await response.json();
+                if (data.errors) {
+                    console.error('AniList GraphQL errors:', data.errors);
+                    return null;
+                }
+                return data;
+            } catch (e) {
+                console.error('AniList direct query failed:', e);
+                return null;
+            }
+        }
+
         // ── Helpers ────────────────────────────────────────────────────────────
         function openModal() {
             overlay.classList.add('active');
@@ -746,7 +869,7 @@
         function parseDateToObj(val) {
             if (!val) return { year: null, month: null, day: null };
             const dt = new Date(val);
-            if (isNaN(dt)) return { year: null, month: null, day: null };
+            if (isNaN(dt.getTime())) return { year: null, month: null, day: null };
             return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
         }
 
@@ -782,11 +905,52 @@
         // ── Fetch current watchlist status on load ─────────────────────────────
         async function loadStatus() {
             try {
-                const r = await fetch(`/api/watchlist/status?anime_id=${encodeURIComponent(ANIME_ID)}`);
-                const data = await r.json();
-                if (data.in_watchlist) {
+                const authOk = await ensureAuth();
+                let statusData = null;
+
+                if (authOk && viewerId) {
+                    const statusQuery = `
+                    query ($userId: Int, $mediaId: Int) {
+                      MediaList(userId: $userId, mediaId: $mediaId) {
+                        id status progress
+                        media { episodes }
+                      }
+                    }
+                    `;
+                    const res = await anilistRequest(statusQuery, { userId: parseInt(viewerId), mediaId: parseInt(ANIME_ID) });
+                    if (res && res.data && res.data.MediaList) {
+                        const entry = res.data.MediaList;
+                        statusData = {
+                            in_watchlist: true,
+                            status: {
+                                'CURRENT': 'watching',
+                                'PLANNING': 'plan_to_watch',
+                                'COMPLETED': 'completed',
+                                'DROPPED': 'dropped',
+                                'PAUSED': 'on_hold'
+                            }[entry.status] || 'watching'
+                        };
+                    } else if (res && !res.data) {
+                        statusData = { in_watchlist: false };
+                    }
+                }
+
+                // Fallback
+                if (!statusData) {
+                    const r = await fetch(`/api/watchlist/status?anime_id=${encodeURIComponent(ANIME_ID)}`);
+                    statusData = await r.json();
+                }
+
+                if (statusData && statusData.in_watchlist) {
                     isOnList = true;
-                    btnText.textContent = data.status || 'In List';
+                    const statusLabelsMapping = {
+                        watching: 'Watching',
+                        plan_to_watch: 'Plan to Watch',
+                        completed: 'Completed',
+                        dropped: 'Dropped',
+                        on_hold: 'On Hold'
+                    };
+                    btnText.textContent = statusLabelsMapping[statusData.status] || 'In List';
                     addBtn.classList.add('active');
                 }
             } catch (e) { /* silently ignore */ }
@@ -795,6 +959,33 @@
         // ── Fetch full entry to pre-populate modal ────────────────────────────
         async function loadEntry() {
             try {
+                const authOk = await ensureAuth();
+                if (authOk && viewerId) {
+                    const entryQuery = `
+                    query ($userId: Int, $mediaId: Int) {
+                      MediaList(userId: $userId, mediaId: $mediaId) {
+                        id status progress score(format: POINT_10_DECIMAL) repeat notes
+                        startedAt { year month day }
+                        completedAt { year month day }
+                      }
+                    }
+                    `;
+                    const res = await anilistRequest(entryQuery, { userId: parseInt(viewerId), mediaId: parseInt(ANIME_ID) });
+                    if (res && res.data && res.data.MediaList) {
+                        const entry = res.data.MediaList;
+                        return {
+                            status: entry.status,
+                            watched_episodes: entry.progress || 0,
+                            score: entry.score || '',
+                            repeat: entry.repeat || 0,
+                            notes: entry.notes || '',
+                            startedAt: entry.startedAt,
+                            completedAt: entry.completedAt
+                        };
+                    }
+                }
+
+                // Fallback
                 const r = await fetch(`/api/watchlist/entry?anime_id=${encodeURIComponent(ANIME_ID)}`);
                 if (!r.ok) return null;
                 const data = await r.json();
@@ -806,7 +997,6 @@
         addBtn.addEventListener('click', async () => {
             updateEpLabel();
 
-            // Reset to sensible defaults first
             statusSelect.value = 'CURRENT';
             progressInput.value = 0;
             document.getElementById('wl-score').value = '';
@@ -817,7 +1007,6 @@
             deleteBtn.style.display = 'none';
 
             if (isOnList) {
-                // Pre-populate from server
                 saveBtn.textContent = 'Loading…';
                 saveBtn.disabled = true;
                 openModal();
@@ -876,31 +1065,81 @@
             saveBtn.disabled = true;
 
             try {
-                const r = await fetch('/api/watchlist/advanced_update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await r.json();
+                const authOk = await ensureAuth();
+                let success = false;
+                let errMsg = '';
 
-                if (data.success) {
+                if (authOk) {
+                    const SAVE_MUTATION = `
+                    mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int,
+                              $score: Int, $repeat: Int, $notes: String,
+                              $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) {
+                      SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress,
+                                         scoreRaw: $score, repeat: $repeat, notes: $notes,
+                                         startedAt: $startedAt, completedAt: $completedAt) {
+                        id status progress
+                      }
+                    }
+                    `;
+                    const vars = {
+                        mediaId: parseInt(payload.anime_id),
+                        status: payload.status,
+                        progress: payload.progress,
+                        score: parseInt(payload.score * 10), // expects POINT_100 (0-100)
+                        repeat: payload.repeat,
+                        notes: payload.notes,
+                        startedAt: payload.startedAt,
+                        completedAt: payload.completedAt
+                    };
+                    const res = await anilistRequest(SAVE_MUTATION, vars);
+                    if (res && res._rate_limited) {
+                        errMsg = 'AniList is rate limiting requests. Please try again in a minute.';
+                    } else if (res && res.data && res.data.SaveMediaListEntry) {
+                        success = true;
+                        // Trigger async MAL sync on backend
+                        fetch('/api/watchlist/sync_mal', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                anime_id: payload.anime_id,
+                                action: 'advanced_update',
+                                progress: payload.progress,
+                                status: payload.status,
+                                score: payload.score
+                            })
+                        }).catch(() => {});
+                    } else {
+                        errMsg = 'AniList mutation failed';
+                    }
+                } else {
+                    // Fallback
+                    const r = await fetch('/api/watchlist/advanced_update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await r.json();
+                    success = data.success;
+                    errMsg = data.message;
+                }
+
+                if (success) {
                     isOnList = true;
-                    const statusLabels = {
+                    const statusLabelsMapping = {
                         CURRENT: 'Watching',
                         PLANNING: 'Plan to Watch',
                         COMPLETED: 'Completed',
                         DROPPED: 'Dropped',
                         PAUSED: 'On Hold'
                     };
-                    btnText.textContent = statusLabels[payload.status] || 'In List';
+                    btnText.textContent = statusLabelsMapping[payload.status] || 'In List';
                     addBtn.classList.add('active');
                     deleteBtn.style.display = 'flex';
                     closeModal();
                 } else {
-                    const msg = data.message || 'Unknown error';
-                    alert(msg.toLowerCase().includes('token') || msg.toLowerCase().includes('forbidden')
+                    alert(errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('forbidden')
                         ? 'Session expired — please refresh and try again.'
-                        : 'Error saving: ' + msg);
+                        : 'Error saving: ' + errMsg);
                 }
             } catch (e) {
                 alert('Connection error. Please refresh and try again.');
@@ -916,19 +1155,58 @@
             deleteBtn.disabled = true;
 
             try {
-                const r = await fetch('/api/watchlist/remove', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ anime_id: ANIME_ID })
-                });
-                const data = await r.json();
-                if (data.success) {
+                const authOk = await ensureAuth();
+                let success = false;
+                let errMsg = '';
+
+                if (authOk) {
+                    const findQuery = `
+                    query ($userId: Int, $mediaId: Int) {
+                      MediaList(userId: $userId, mediaId: $mediaId) {
+                        id
+                      }
+                    }
+                    `;
+                    const findData = await anilistRequest(findQuery, { userId: parseInt(viewerId), mediaId: parseInt(ANIME_ID) });
+                    if (findData && findData.data && findData.data.MediaList) {
+                        const entryId = findData.data.MediaList.id;
+                        const deleteMutation = `
+                        mutation ($id: Int) {
+                          DeleteMediaListEntry(id: $id) {
+                            deleted
+                          }
+                        }
+                        `;
+                        const delData = await anilistRequest(deleteMutation, { id: entryId });
+                        if (delData && delData.data && delData.data.DeleteMediaListEntry && delData.data.DeleteMediaListEntry.deleted) {
+                            success = true;
+                        } else {
+                            errMsg = 'Failed to delete from AniList';
+                        }
+                    } else if (findData && findData._rate_limited) {
+                        errMsg = 'AniList is rate limiting requests. Please try again in a minute.';
+                    } else {
+                        errMsg = 'Could not find entry on AniList';
+                    }
+                } else {
+                    // Fallback
+                    const r = await fetch('/api/watchlist/remove', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ anime_id: ANIME_ID })
+                    });
+                    const data = await r.json();
+                    success = data.success;
+                    errMsg = data.message;
+                }
+
+                if (success) {
                     isOnList = false;
                     btnText.textContent = 'Add to List';
                     addBtn.classList.remove('active');
                     closeModal();
                 } else {
-                    alert('Error removing: ' + (data.message || 'Unknown error'));
+                    alert('Error removing: ' + errMsg);
                 }
             } catch (e) {
                 alert('Connection error.');

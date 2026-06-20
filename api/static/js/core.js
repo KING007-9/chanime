@@ -4,6 +4,16 @@ let otpTimerInterval = null;
 let currentResetEmail = '';
 let currentResetToken = '';
 
+// Validation Helpers
+function validateEmail(email) {
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return re.test(String(email).toLowerCase());
+}
+
+function validatePassword(password) {
+    return password && password.length >= 6 && password.length <= 30;
+}
+
 // Dropdown toggle
 function toggleDropdown(id) {
     const dropdown = document.getElementById(id);
@@ -86,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 
 function openLoginModal(view = 'login') {
+    if (window.loadTurnstile) window.loadTurnstile();
     const modal = document.getElementById('login-modal');
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -181,6 +192,33 @@ async function handleLogin(e) {
     btnText.textContent = 'Signing in...';
     errorDiv.style.display = 'none';
 
+    const username = form.username.value.trim();
+    const password = form.password.value;
+
+    if (!username || !password) {
+        errorDiv.textContent = 'Username and password are required.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Sign In';
+        return;
+    }
+
+    if (username.length > 20 || password.length > 30) {
+        errorDiv.textContent = 'Invalid username or password.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Sign In';
+        return;
+    }
+
+    if (password.length < 6) {
+        errorDiv.textContent = 'Invalid username or password.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Sign In';
+        return;
+    }
+
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
@@ -231,6 +269,50 @@ async function handleSignup(e) {
     btnText.textContent = 'Creating account...';
     errorDiv.style.display = 'none';
 
+    const username = form.username.value.trim();
+    const email = form.email.value.trim();
+    const password = form.password.value;
+
+    if (!username || !email || !password) {
+        errorDiv.textContent = 'All fields are required.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        return;
+    }
+
+    if (username.length < 3 || username.length > 20) {
+        errorDiv.textContent = 'Username must be between 3 and 20 characters long.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        return;
+    }
+
+    if (username.includes(' ')) {
+        errorDiv.textContent = 'Username cannot contain spaces.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        return;
+    }
+
+    if (!validateEmail(email) || email.length > 50) {
+        errorDiv.textContent = email.length > 50 ? 'Email address is too long.' : 'Please enter a valid email address.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        return;
+    }
+
+    if (!validatePassword(password)) {
+        errorDiv.textContent = password.length > 30 ? 'Password is too long (max 30 chars).' : 'Password must be at least 6 characters long.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        return;
+    }
+
     try {
         const response = await fetch('/api/auth/signup', {
             method: 'POST',
@@ -274,6 +356,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Live username availability and format checker
+document.addEventListener('DOMContentLoaded', () => {
+    const signupUsername = document.getElementById('signup-username');
+    const statusDiv = document.getElementById('username-status');
+    
+    if (signupUsername && statusDiv) {
+        let debounceTimeout;
+        
+        signupUsername.addEventListener('input', () => {
+            const val = signupUsername.value.trim();
+            statusDiv.style.display = 'none';
+            statusDiv.textContent = '';
+            
+            if (val.length === 0) {
+                return;
+            }
+            
+            if (val.length < 3) {
+                statusDiv.textContent = 'Username must be at least 3 characters.';
+                statusDiv.style.color = '#ff4d4d'; // Soft error red
+                statusDiv.style.display = 'block';
+                return;
+            }
+            
+            if (val.includes(' ')) {
+                statusDiv.textContent = 'Username cannot contain spaces.';
+                statusDiv.style.color = '#ff4d4d';
+                statusDiv.style.display = 'block';
+                return;
+            }
+            
+            statusDiv.textContent = 'Checking availability...';
+            statusDiv.style.color = '#888'; // Muted text
+            statusDiv.style.display = 'block';
+            
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`);
+                    const data = await res.json();
+                    
+                    // Prevent state race conditions if user typed more characters in the meantime
+                    if (signupUsername.value.trim() !== val) return;
+                    
+                    if (data.available) {
+                        statusDiv.textContent = '✓ Username is available!';
+                        statusDiv.style.color = '#2ecc71'; // Beautiful success green
+                    } else {
+                        statusDiv.textContent = data.message || 'Username is not available.';
+                        statusDiv.style.color = '#ff4d4d';
+                    }
+                } catch (e) {
+
+                }
+            }, 400);
+        });
+    }
+});
+
 // Close modal on Escape
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeLoginModal();
@@ -295,7 +436,7 @@ async function handleLogout(e) {
             alert('Logout failed. Please try again.');
         }
     } catch (err) {
-        console.error('Logout error:', err);
+
         window.location.href = '/';
     }
 }
@@ -340,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     } catch (e) {
-        console.error("Error auto-updating watch links:", e);
+
     }
 });
 
@@ -397,6 +538,14 @@ async function handleForgotPassword(e) {
     btn.disabled = true;
     btnText.textContent = 'Sending...';
     errorDiv.style.display = 'none';
+
+    if (!validateEmail(email) || email.length > 50) {
+        errorDiv.textContent = email.length > 50 ? 'Email address is too long.' : 'Please enter a valid email address.';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btnText.textContent = 'Send Reset Code';
+        return;
+    }
 
     try {
         const response = await fetch('/api/auth/forgot-password', {
@@ -537,6 +686,12 @@ async function handleResetPassword(e) {
 
     if (newPassword !== confirmPassword) {
         errorDiv.textContent = 'Passwords do not match.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (!validatePassword(newPassword)) {
+        errorDiv.textContent = newPassword.length > 30 ? 'Password is too long (max 30 chars).' : 'Password must be at least 6 characters long.';
         errorDiv.style.display = 'block';
         return;
     }

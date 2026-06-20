@@ -17,6 +17,11 @@ def _src(source):
     return SOURCES.get(source or DEFAULT_SOURCE, SOURCES[DEFAULT_SOURCE])
 
 
+import time
+
+_HOME_CACHE = {}
+_CACHE_TTL = 900  # 15 minutes
+
 class MangaScraper:
     """Unified manga scraper with multi-source support."""
 
@@ -26,8 +31,17 @@ class MangaScraper:
 
     @staticmethod
     def home(source=None):
+        src_key = source or "atsumaru"
+        now = time.time()
+        if src_key in _HOME_CACHE:
+            data, timestamp = _HOME_CACHE[src_key]
+            if now - timestamp < _CACHE_TTL:
+                return data
         try:
-            return _src(source)["module"].home()
+            data = _src(source)["module"].home()
+            if data:
+                _HOME_CACHE[src_key] = (data, now)
+            return data
         except Exception as e:
             logger.error("Manga home error (%s): %s", source, e)
             return {}

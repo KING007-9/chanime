@@ -81,20 +81,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Clear history
-    const clearBtn = document.getElementById('clear-history');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            if (!confirm('Are you sure you want to clear your watch history? This cannot be undone.')) return;
-
-            // Clear local storage watch data
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('yume_watch_') || key.startsWith('yume_progress_')) {
-                    localStorage.removeItem(key);
+    // Delete Account
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+    if (deleteAccountBtn) {
+        deleteAccountBtn.addEventListener('click', async function () {
+            if (!confirm('WARNING: Are you absolutely sure you want to delete your YumeZone account? This action is permanent, completely irreversible, and will delete all your watchlist data, settings, and profile.')) return;
+            if (!confirm('FINAL CONFIRMATION: Are you really sure you want to permanently delete your account? You cannot recover it under any circumstances.')) return;
+            
+            try {
+                const response = await fetch('/api/auth/delete-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear local storage data for clean slate
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('yume_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                    alert('Your account has been deleted successfully. We are sorry to see you go!');
+                    window.location.href = '/';
+                } else {
+                    alert(data.message || 'Failed to delete account.');
                 }
-            });
-
-            alert('Watch history cleared!');
+            } catch (e) {
+                alert('A network error occurred. Please try again.');
+            }
         });
     }
 
@@ -129,6 +144,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPassword = document.getElementById('current-password').value;
             const newPassword = document.getElementById('new-password').value;
             
+            if (!currentPassword || !newPassword) {
+                if (pwdErrorMsg) {
+                    pwdErrorMsg.textContent = 'Both current and new passwords are required.';
+                    pwdErrorMsg.style.display = 'block';
+                }
+                return;
+            }
+
+            if (newPassword.length < 6 || newPassword.length > 30) {
+                if (pwdErrorMsg) {
+                    pwdErrorMsg.textContent = newPassword.length > 30 ? 'New password is too long (max 30 chars).' : 'New password must be at least 6 characters long.';
+                    pwdErrorMsg.style.display = 'block';
+                }
+                return;
+            }
+
             const payload = { current_password: currentPassword, new_password: newPassword };
 
             const btn = document.getElementById('submit-password-btn');

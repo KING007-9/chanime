@@ -22,6 +22,23 @@ let _failedProviders = new Set();
 let globalTimestamps = { intro: null, outro: null };
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+// Decryption helper
+const _0x5f3a = (s, t) => {
+    if (!s) return null;
+    try {
+        const k = atob(t).split("").reverse().join("");
+        const b = atob(s);
+        const l = b.length;
+        const r = new Uint8Array(l);
+        for (let i = 0; i < l; i++) {
+            r[i] = b.charCodeAt(i) ^ k.charCodeAt(i % k.length) ^ ((i * 3) % 256);
+        }
+        return JSON.parse(new TextDecoder().decode(r));
+    } catch (e) {
+        return null;
+    }
+};
+
 // ── Helpers ──────────────────────────────────────────────────────
 const Chanime = {
     watch: async (provider, animeId, language, epNumber) => {
@@ -30,7 +47,12 @@ const Chanime = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ anime_id: animeId, episode_number: epNumber, language, provider })
         });
-        return await r.json();
+        const res = await r.json();
+        if (res && res.ct) {
+            const token = window.WATCH_CONFIG ? window.WATCH_CONFIG.token : '';
+            return _0x5f3a(res.ct, token) || res;
+        }
+        return res;
     }
 };
 
@@ -60,6 +82,10 @@ function buildCustomPlayer(playerArea, video) {
     shell.innerHTML = `
 <div id="yz-buffering" class="yz-buffering" style="display:none"><div class="yz-spinner"></div></div>
 <button id="yz-skip-btn" class="yz-skip-btn" style="display:none">Skip Intro</button>
+<button id="yz-center-play-btn" class="yz-center-play-btn">
+  <svg class="center-icon-play" width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+  <svg class="center-icon-pause" width="30" height="30" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+</button>
 <div id="yz-overlay" class="yz-overlay"></div>
 <div id="yz-dt-left" class="yz-dt-zone yz-dt-left">
   <div class="yz-dt-indicator"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg><span>10s</span></div>
@@ -173,16 +199,44 @@ function attachPlayerControls(shell, vid) {
           curQualLbl  = g('yz-cur-qual'),  qualRow   = g('yz-qual-row'),
           fsBtn       = g('yz-fs-btn'),    overlay   = g('yz-overlay'),
           pauseFlash  = g('yz-pause-flash'),back10   = g('yz-back10'),
-          fwd10       = g('yz-fwd10');
+          fwd10       = g('yz-fwd10'),     centerPlayBtn = g('yz-center-play-btn');
 
     const cfg = window.WATCH_CONFIG || {};
     let skipTarget = null;
     let _isDragging = false;
+    let _lastSkippedRange = null;
 
     // Skip intro/outro
     vid.addEventListener('timeupdate', () => {
         if (!skipBtn) return;
         const cur = vid.currentTime, i = globalTimestamps.intro, o = globalTimestamps.outro;
+
+        // Auto skip behavior
+        const autoSkipEnabled = localStorage.getItem('yume_skip_intro') === 'true';
+        if (autoSkipEnabled) {
+            if (i && cur >= i.start && cur < i.end) {
+                if (_lastSkippedRange !== 'intro') {
+                    _lastSkippedRange = 'intro';
+                    vid.currentTime = i.end;
+                    showToast('Auto-skipped Intro', 'success');
+                }
+                return;
+            }
+            if (o && cur >= o.start && cur < o.end) {
+                if (_lastSkippedRange !== 'outro') {
+                    _lastSkippedRange = 'outro';
+                    vid.currentTime = o.end;
+                    showToast('Auto-skipped Outro', 'success');
+                }
+                return;
+            }
+        }
+
+        // Reset last skipped range if we are outside both intro and outro
+        if ((!i || cur < i.start || cur >= i.end) && (!o || cur < o.start || cur >= o.end)) {
+            _lastSkippedRange = null;
+        }
+
         let found = false;
         if (i && cur >= i.start && cur <= i.end)       { skipBtn.textContent='Skip Intro'; skipBtn.style.display='block'; skipTarget=i.end; found=true; }
         else if (o && cur >= o.start && cur <= o.end)  { skipBtn.textContent='Skip Outro'; skipBtn.style.display='block'; skipTarget=o.end; found=true; }
@@ -199,6 +253,10 @@ function attachPlayerControls(shell, vid) {
     function syncPlay() {
         g('yz-play-btn')?.querySelector('.icon-play')?.style.setProperty('display', vid.paused?'':'none');
         g('yz-play-btn')?.querySelector('.icon-pause')?.style.setProperty('display', vid.paused?'none':'');
+        if (centerPlayBtn) {
+            centerPlayBtn.querySelector('.center-icon-play').style.display = vid.paused ? '' : 'none';
+            centerPlayBtn.querySelector('.center-icon-pause').style.display = vid.paused ? 'none' : '';
+        }
     }
     playBtn?.addEventListener('click', ()=> vid.paused ? vid.play() : vid.pause());
     vid.addEventListener('play', syncPlay);
@@ -255,7 +313,46 @@ function attachPlayerControls(shell, vid) {
             }
         } catch{} 
     }, {once:true});
-    vid.addEventListener('ended',   ()=>{ try{localStorage.removeItem(resumeKey);}catch{} });
+    vid.addEventListener('ended',   ()=>{ 
+        try{localStorage.removeItem(resumeKey);}catch{} 
+        const autoplay = localStorage.getItem('yume_autoplay') === 'true';
+        if (autoplay) {
+            const skipFiller = localStorage.getItem('yume_skip_filler') === 'true';
+            if (skipFiller) {
+                const items = Array.from(document.querySelectorAll('.episode-sidebar-item'));
+                const currentIndex = items.findIndex(el => el.classList.contains('current'));
+                if (currentIndex !== -1) {
+                    let skippedCount = 0;
+                    let nextNonFillerEl = null;
+                    for (let i = currentIndex + 1; i < items.length; i++) {
+                        if (items[i].classList.contains('is-filler')) {
+                            skippedCount++;
+                        } else {
+                            nextNonFillerEl = items[i];
+                            break;
+                        }
+                    }
+                    if (skippedCount > 0 && nextNonFillerEl) {
+                        const epNum = nextNonFillerEl.getAttribute('data-number') || nextNonFillerEl.textContent.trim().split('\n')[0].trim();
+                        showToast(`Skipping ${skippedCount} filler episode${skippedCount > 1 ? 's' : ''} directly to Ep ${epNum}...`, 'info');
+                        setTimeout(() => {
+                            navigateToEpisode(epNum);
+                        }, 1500);
+                        return; // Prevent fallback normal click
+                    }
+                }
+            }
+            
+            // Fallback standard behavior
+            const nextBtn = document.getElementById('next-episode-btn');
+            if (nextBtn && nextBtn.getAttribute('href') && nextBtn.getAttribute('href') !== 'javascript:void(0)') {
+                showToast('Autoplaying next episode...', 'info');
+                setTimeout(() => {
+                    nextBtn.click();
+                }, 1000);
+            }
+        }
+    });
     vid.addEventListener('pause',   ()=>{ 
         if(vid.currentTime>3&&vid.duration&&(vid.duration-vid.currentTime)>5) { 
             try{localStorage.setItem(resumeKey,Math.floor(vid.currentTime));}catch{} 
@@ -308,14 +405,41 @@ function attachPlayerControls(shell, vid) {
         }
     });
 
+    // ── Middle-click to play/pause ──
+    shell.addEventListener('mousedown', function(e) {
+        if (e.button === 1) { // Middle click
+            e.preventDefault(); // Prevent default autoscroll icon/behavior
+        }
+    });
+
+    shell.addEventListener('auxclick', function(e) {
+        if (e.button === 1) { // Middle click
+            e.preventDefault();
+            vid.paused ? vid.play() : vid.pause();
+            showCtrls();
+        }
+    });
+
     // Controls auto-hide
     let _lastTouchTime = 0;
     shell.addEventListener('touchstart', ()=>{ _lastTouchTime = Date.now(); }, {passive: true});
 
     function showCtrls() {
         controls?.classList.remove('yz-hidden'); shell.style.cursor='';
+        if (centerPlayBtn && _isMobile) {
+            centerPlayBtn.style.opacity = '1';
+            centerPlayBtn.style.pointerEvents = 'auto';
+        }
         clearTimeout(_ctrlTimer);
-        if (!vid.paused) _ctrlTimer = setTimeout(()=>{ controls?.classList.add('yz-hidden'); shell.style.cursor='none'; if(settPanel) settPanel.style.display='none'; }, 3000);
+        if (!vid.paused) _ctrlTimer = setTimeout(()=>{ 
+            controls?.classList.add('yz-hidden'); 
+            shell.style.cursor='none'; 
+            if(settPanel) settPanel.style.display='none'; 
+            if (centerPlayBtn && _isMobile) {
+                centerPlayBtn.style.opacity = '0';
+                centerPlayBtn.style.pointerEvents = 'none';
+            }
+        }, 3000);
     }
     shell.showCtrls = showCtrls;
 
@@ -339,7 +463,15 @@ function attachPlayerControls(shell, vid) {
                     showCtrls();
                 } else {
                     tapTimeout = setTimeout(function() {
-                        controls?.classList.contains('yz-hidden') ? showCtrls() : controls?.classList.add('yz-hidden');
+                        if (controls?.classList.contains('yz-hidden')) {
+                            showCtrls();
+                        } else {
+                            controls?.classList.add('yz-hidden');
+                            if (centerPlayBtn) {
+                                centerPlayBtn.style.opacity = '0';
+                                centerPlayBtn.style.pointerEvents = 'none';
+                            }
+                        }
                     }, 300);
                 }
                 lastTap = now;
@@ -349,9 +481,29 @@ function attachPlayerControls(shell, vid) {
         setupDoubleTap(_dtRightZone, 10);
     }
 
-    overlay?.addEventListener('click', ()=>{
+    if (_isMobile) {
+        overlay?.addEventListener('click', (e)=>{
+            e.stopPropagation();
+            if (controls?.classList.contains('yz-hidden')) {
+                showCtrls();
+            } else {
+                controls?.classList.add('yz-hidden');
+                if (centerPlayBtn) {
+                    centerPlayBtn.style.opacity = '0';
+                    centerPlayBtn.style.pointerEvents = 'none';
+                }
+            }
+        });
+    } else {
+        overlay?.addEventListener('click', ()=>{
+            vid.paused ? vid.play() : vid.pause();
+        });
+    }
+
+    centerPlayBtn?.addEventListener('click', (e)=>{
+        e.stopPropagation();
         vid.paused ? vid.play() : vid.pause();
-        if (_isMobile) showCtrls();
+        showCtrls();
     });
 
     // Settings
@@ -363,6 +515,8 @@ function attachPlayerControls(shell, vid) {
     g('yz-qual-back')?.addEventListener('click',  ()=>showSettPage('main'));
     document.addEventListener('click', e=>{ if(settPanel&&!settPanel.contains(e.target)&&!settBtn?.contains(e.target)) settPanel.style.display='none'; }, true);
     settPanel?.addEventListener('click', e=>e.stopPropagation());
+
+
 
     // Speed options
     if (speedOpts) {
@@ -385,20 +539,124 @@ function attachPlayerControls(shell, vid) {
         });
     };
 
-    // Fullscreen + mobile landscape rotation
-    fsBtn?.addEventListener('click', ()=>{
-        if (!document.fullscreenElement) shell.requestFullscreen?.()?.catch(()=>{});
-        else document.exitFullscreen?.();
-    });
-    document.addEventListener('fullscreenchange', ()=>{
-        const fs=!!document.fullscreenElement;
-        fsBtn?.querySelector('.icon-fs')?.style.setProperty('display',fs?'none':'');
-        fsBtn?.querySelector('.icon-exit-fs')?.style.setProperty('display',fs?'':'none');
-        // Lock landscape on mobile fullscreen
-        if (_isMobile && screen.orientation && screen.orientation.lock) {
-            if (fs) { try { screen.orientation.lock('landscape').catch(function(){}); } catch(e){} }
-            else    { try { screen.orientation.unlock(); } catch(e){} }
+    // Fullscreen + mobile landscape rotation (with iOS Safari support and auto rotation fallback)
+    function enterPseudoFullscreen(target) {
+        target.classList.add('yz-pseudo-fullscreen');
+        document.body.style.overflow = 'hidden';
+        
+        // Dispatch custom event to simulate fullscreenchange
+        const event = new Event('fullscreenchange', { bubbles: true, cancelable: true });
+        document.dispatchEvent(event);
+    }
+
+    function exitPseudoFullscreen(target) {
+        target.classList.remove('yz-pseudo-fullscreen');
+        target.classList.remove('yz-rotated-fullscreen');
+        document.body.style.overflow = '';
+        
+        // Dispatch custom event to simulate fullscreenchange
+        const event = new Event('fullscreenchange', { bubbles: true, cancelable: true });
+        document.dispatchEvent(event);
+    }
+
+    function toggleFullscreen() {
+        var targetFs = document.getElementById('player-area') || shell;
+        const supportsNative = !!targetFs.requestFullscreen || !!targetFs.webkitRequestFullscreen || !!targetFs.mozRequestFullScreen || !!targetFs.msRequestFullscreen;
+
+        if (supportsNative) {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
+                const req = targetFs.requestFullscreen || targetFs.webkitRequestFullscreen || targetFs.mozRequestFullScreen || targetFs.msRequestFullscreen;
+                req.call(targetFs).catch(()=>{
+                    enterPseudoFullscreen(targetFs);
+                });
+            } else {
+                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                exit.call(document);
+            }
+        } else {
+            if (!targetFs.classList.contains('yz-pseudo-fullscreen')) {
+                enterPseudoFullscreen(targetFs);
+            } else {
+                exitPseudoFullscreen(targetFs);
+            }
         }
+    }
+
+    function handleFullscreenRotation(isFs) {
+        const playerArea = document.getElementById('player-area');
+        if (!playerArea) return;
+
+        if (isFs) {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(() => {
+                    applyCssRotationIfNeeded();
+                });
+            } else {
+                applyCssRotationIfNeeded();
+            }
+        } else {
+            playerArea.classList.remove('yz-rotated-fullscreen');
+            if (screen.orientation && screen.orientation.unlock) {
+                try { screen.orientation.unlock(); } catch(e){}
+            }
+        }
+    }
+
+    function applyCssRotationIfNeeded() {
+        const playerArea = document.getElementById('player-area');
+        if (!playerArea) return;
+
+        const isPortrait = window.innerHeight > window.innerWidth;
+        if (isPortrait) {
+            playerArea.classList.add('yz-rotated-fullscreen');
+        } else {
+            playerArea.classList.remove('yz-rotated-fullscreen');
+        }
+    }
+
+    fsBtn?.addEventListener('click', toggleFullscreen);
+
+    // Listen to Escape key for exiting pseudo-fullscreen
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            const playerArea = document.getElementById('player-area');
+            if (playerArea && playerArea.classList.contains('yz-pseudo-fullscreen')) {
+                exitPseudoFullscreen(playerArea);
+            }
+        }
+    });
+
+    const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+    fsEvents.forEach(evtName => {
+        document.addEventListener(evtName, () => {
+            const playerArea = document.getElementById('player-area');
+            const fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || playerArea?.classList.contains('yz-pseudo-fullscreen'));
+            
+            fsBtn?.querySelector('.icon-fs')?.style.setProperty('display', fs ? 'none' : '');
+            fsBtn?.querySelector('.icon-exit-fs')?.style.setProperty('display', fs ? '' : 'none');
+            
+            if (_isMobile) {
+                handleFullscreenRotation(fs);
+            }
+        });
+    });
+
+    window.addEventListener('resize', () => {
+        const playerArea = document.getElementById('player-area');
+        const fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || playerArea?.classList.contains('yz-pseudo-fullscreen'));
+        if (fs && _isMobile) {
+            applyCssRotationIfNeeded();
+        }
+    });
+
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            const playerArea = document.getElementById('player-area');
+            const fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || playerArea?.classList.contains('yz-pseudo-fullscreen'));
+            if (fs && _isMobile) {
+                applyCssRotationIfNeeded();
+            }
+        }, 150);
     });
 
     // Keyboard shortcuts handled globally
@@ -406,16 +664,29 @@ function attachPlayerControls(shell, vid) {
 
     syncPlay(); syncMute();
     if (volSlider) { volSlider.value=vid.muted?0:vid.volume; volSlider.style.setProperty('--pct',(vid.muted?0:vid.volume*100)+'%'); }
+    
+    // Handle Native controls initial state
+    const isNative = localStorage.getItem('yume_native_player') === 'true';
+    if (isNative && vid) {
+        vid.controls = true;
+        if (controls) controls.style.display = 'none';
+    }
 }
 // ── playHLS ───────────────────────────────────────────────────────
-function playHLS(rawUrl, allStreams) {
+function playHLS(rawUrl, allStreams, options) {
     const playerArea = document.getElementById('player-area');
     if (!playerArea) return;
+    if (!rawUrl || typeof rawUrl !== 'string') {
+        showNoSourcesMessage();
+        return;
+    }
+    options = options || {};
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
 
+    const isAutoplayEnabled = localStorage.getItem('yume_player_autoplay') !== 'false';
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
-    video.autoplay    = true;
+    video.autoplay    = isAutoplayEnabled;
     video.playsInline = true;
     buildCustomPlayer(playerArea, video);
 
@@ -423,9 +694,16 @@ function playHLS(rawUrl, allStreams) {
     const vid   = playerArea.querySelector('#yz-video');
     if (!vid) return;
 
-    if (typeof Hls === 'undefined') { console.error('[HLS] hls.js not loaded'); return; }
+    if (typeof Hls === 'undefined') { return; }
 
-    if (Hls.isSupported()) {
+    const isHls = options.type === 'mp4'
+        ? false
+        : options.type === 'hls'
+            || rawUrl.includes('.m3u8')
+            || rawUrl.includes('/proxy/m3u8')
+            || rawUrl.includes('/p/')
+            || rawUrl.includes('.urlset');
+    if (Hls.isSupported() && isHls) {
         hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: false });
 
         hlsInstance.on(Hls.Events.ERROR, function(_, d) {
@@ -434,14 +712,16 @@ function playHLS(rawUrl, allStreams) {
                 hlsInstance.swapAudioCodec();
                 hlsInstance.recoverMediaError();
             } else {
-                if (isPlaybackHealthy()) { console.warn('[HLS] fatal but healthy, ignoring'); return; }
-                console.warn('[HLS] fatal error:', d.type, d.details);
+                if (isPlaybackHealthy()) { return; }
+
                 onHlsFatal();
             }
         });
 
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, function(_, data) {
-            vid.play().catch(function(){});
+            if (isAutoplayEnabled) {
+                vid.play().catch(function(){});
+            }
             if (shell && shell._buildQuality && data.levels && data.levels.length > 1) {
                 var seen = new Set();
                 var levels = data.levels
@@ -454,12 +734,21 @@ function playHLS(rawUrl, allStreams) {
             }
         });
 
-        hlsInstance.loadSource(rawUrl);
         hlsInstance.attachMedia(vid);
+        hlsInstance.on(Hls.Events.MEDIA_ATTACHED, function() {
+            hlsInstance.loadSource(rawUrl);
+        });
 
+    } else if (!isHls) {
+        vid.src = rawUrl;
+        if (isAutoplayEnabled) {
+            vid.play().catch(function(){});
+        }
     } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
         vid.src = rawUrl;
-        vid.play().catch(function(){});
+        if (isAutoplayEnabled) {
+            vid.play().catch(function(){});
+        }
     } else {
         playerArea.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:40px;">HLS not supported in this browser.</div>';
     }
@@ -494,31 +783,53 @@ function onHlsFatal() {
         _isFallbackInProgress = true;
         fetchAndLoadSources(true);
     } else {
-        showNoSourcesMessage();
+        // All HLS providers exhausted — try embed fallback
+        // Clear desired stream type so embed sources are accepted
+        if (window._watchState) {
+            window._watchState._desiredStreamType = 'embed';
+        }
+        // Find any provider that hasn't fully failed (might have embed)
+        var embedNext = getNextAvailableProvider(cur);
+        if (!embedNext) {
+            // Also check the current provider itself — it might have embed
+            // even though HLS failed (only marked as X::hls, not fully failed)
+            if (!isProviderFullyFailed(cur) && !isProviderFailedForType(cur, 'embed')) {
+                embedNext = cur;
+            }
+        }
+        if (embedNext) {
+            var embedName = PROVIDER_DISPLAY_NAMES[embedNext] || embedNext;
+            showToast('HLS unavailable — trying <strong>' + embedName + '</strong> embed', 'info');
+            window._watchState.provider = embedNext;
+            _isFallbackInProgress = true;
+            fetchAndLoadSources(true);
+        } else {
+            showNoSourcesMessage();
+        }
     }
 }
 
 // ── Provider fallback system ──────────────────────────────────────
-var _PROVIDER_PRIORITY = ['kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','bee','zoro'];
+var _PROVIDER_PRIORITY = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','ax-beep','bee','zoro','anixtv'];
 var PROVIDER_DISPLAY_NAMES = {
+    "zenith":    "Zenith",
     "kiwi":      "Miku",
     "ax-mimi":   "Shinra",
     "ax-wave":   "Nami",
     "ax-shiro":  "Shiro",
     "ax-yuki":   "Yuki",
     "ax-zen":    "Senku",
+    "ax-beep":   "Cosmic",
     "bee":       "Hachi",
     "zoro":      "Megaplay",
+    "anixtv":    "Hindi",
 };
 
 function applyServerDisplayNames() {
     document.querySelectorAll('.server-pill').forEach(function(pill) {
         var p = pill.dataset.provider;
-        if (PROVIDER_DISPLAY_NAMES[p]) {
-            // Keep the badge span
-            var badge = pill.querySelector('.srv-badge');
-            pill.childNodes[0].textContent = PROVIDER_DISPLAY_NAMES[p] + ' ';
-            if (badge) pill.appendChild(badge);
+        if (PROVIDER_DISPLAY_NAMES[p] && pill.childNodes[0]) {
+            pill.childNodes[0].textContent = PROVIDER_DISPLAY_NAMES[p];
         }
     });
 }
@@ -592,25 +903,193 @@ function proxyUrl(url, referer) {
     return url;
 }
 
+function watchTogetherClientId() {
+    var key = 'yume_watch_together_client_id';
+    var legacyKey = 'yumeWatchTogetherClientId';
+
+    function randStr(len) {
+        var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var res = '';
+        for (var i = 0; i < len; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return res;
+    }
+
+    try {
+        var existing = localStorage.getItem(key) || localStorage.getItem(legacyKey);
+        if (existing) {
+            localStorage.setItem(key, existing);
+            localStorage.setItem(legacyKey, existing);
+            return existing;
+        }
+        var generated = 'c_' + randStr(8) + Date.now().toString(36).slice(-6);
+        localStorage.setItem(key, generated);
+        localStorage.setItem(legacyKey, generated);
+        return generated;
+    } catch (err) {
+        return 'c_' + randStr(10);
+    }
+}
+
+function watchTogetherStoredName(value) {
+    var key = 'yume_watch_together_name';
+    var legacyKey = 'yumeWatchTogetherName';
+    try {
+        if (value) {
+            localStorage.setItem(key, value);
+            localStorage.setItem(legacyKey, value);
+        }
+        return localStorage.getItem(key) || localStorage.getItem(legacyKey) || '';
+    } catch (err) {
+        return value || '';
+    }
+}
+
+function watchTogetherStatus(el, message, type) {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('error', 'success');
+    if (type) el.classList.add(type);
+}
+
+function createWatchTogetherRoom(options) {
+    var cfg = window.WATCH_CONFIG || {};
+
+
+    var displayName = (options.displayName || '').trim();
+    if (!displayName && cfg.username) displayName = cfg.username;
+    if (!displayName) displayName = watchTogetherStoredName() || ('Guest ' + Math.random().toString(36).slice(2, 6).toUpperCase());
+    watchTogetherStoredName(displayName);
+
+    return fetch('/api/watch-together/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            anime_id: cfg.animeId,
+            episode_number: cfg.episodeNumber,
+            language: cfg.language || 'sub',
+            provider: (window._watchState && window._watchState.provider) || cfg.provider || '',
+            client_id: watchTogetherClientId(),
+            display_name: displayName
+        })
+    }).then(function(response) {
+        return response.json().then(function(data) {
+            if (!response.ok) {
+                throw new Error(data && data.error ? data.error : 'Could not create room');
+            }
+            return data;
+        });
+    });
+}
+
+function initWatchTogetherCreate() {
+    var trigger = document.getElementById('watchTogetherBtn');
+    if (!trigger) return;
+
+    var modal = document.getElementById('wtQuickCreateModal');
+    var form = document.getElementById('wtQuickCreateForm');
+    var close = document.getElementById('wtQuickCreateClose');
+    var cancel = document.getElementById('wtQuickCreateCancel');
+    var status = document.getElementById('wtQuickStatus');
+    var submit = document.getElementById('wtQuickCreateSubmit');
+    var nameInput = document.getElementById('wtQuickName');
+    var cfg = window.WATCH_CONFIG || {};
+
+    if (nameInput) {
+        nameInput.value = cfg.username || watchTogetherStoredName();
+    }
+
+    function openModal() {
+        if (!modal) {
+            createWatchTogetherRoom({})
+                .then(function(data) { window.location.href = data.room_url; })
+                .catch(function(err) { if (window.showToast) showToast(err.message, 'error'); });
+            return;
+        }
+        watchTogetherStatus(status, 'Create a link-only room for this episode.', '');
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        if (nameInput && !nameInput.value) nameInput.focus();
+    }
+
+    function closeModal() {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    trigger.addEventListener('click', function(event) {
+        event.preventDefault();
+        openModal();
+    });
+
+    if (close) close.addEventListener('click', closeModal);
+    if (cancel) cancel.addEventListener('click', closeModal);
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) closeModal();
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            if (submit) submit.disabled = true;
+            watchTogetherStatus(status, 'Creating room...', '');
+            createWatchTogetherRoom({
+                displayName: nameInput ? nameInput.value : ''
+            })
+                .then(function(data) {
+                    watchTogetherStatus(status, 'Room created. Redirecting...', 'success');
+                    window.location.href = data.room_url;
+                })
+                .catch(function(err) {
+                    watchTogetherStatus(status, err.message || 'Could not create room', 'error');
+                    if (submit) submit.disabled = false;
+                });
+        });
+    }
+}
+
 // ── applyVideoSources (replaces old Vidstack version) ────────────
 function applyVideoSources(data) {
     var hlsSources   = data.hls_sources   || [];
+    var mp4Sources   = data.video_sources || [];
     var embedSources = data.embed_sources || [];
     var desired      = window._watchState && window._watchState._desiredStreamType;
     var useEmbed     = false;
+    var useMp4       = false;
 
-    if      (desired === 'hls')                     useEmbed = false;
+    if      (desired === 'hls' && hlsSources.length)     useEmbed = false;
+    else if (desired === 'hls' && mp4Sources.length)     useMp4 = true;
+    else if (desired === 'hls' && embedSources.length)   useEmbed = true;  // HLS desired but unavailable — fall back to embed
     else if (desired === 'embed' && embedSources.length) useEmbed = true;
-    else if (hlsSources.length)                     useEmbed = false;
-    else if (embedSources.length)                   useEmbed = true;
+    else if (data.source_type === 'mp4' && mp4Sources.length) useMp4 = true;
+    else if (hlsSources.length)                          useEmbed = false;
+    else if (mp4Sources.length)                          useMp4 = true;
+    else if (embedSources.length)                        useEmbed = true;
 
     var errEl = document.getElementById('errorFallbackContainer');
     if (errEl) errEl.style.display = 'none';
 
-    if (!useEmbed && hlsSources.length) {
-        var url = hlsSources[0].file || hlsSources[0].url;
-        if (url) playHLS(proxyUrl(url, ''), hlsSources);
-    } else if (useEmbed && embedSources.length) {
+    function sourceUrl(source) {
+        if (!source) return '';
+        if (typeof source === 'string') return source;
+        return source.file || source.url || '';
+    }
+
+    if (useMp4 && mp4Sources.length) {
+        var mp4Url = sourceUrl(mp4Sources[0]) || data.video_link;
+        if (mp4Url) playHLS(proxyUrl(mp4Url, ''), mp4Sources, { type: 'mp4' });
+    } else if (!useEmbed && hlsSources.length) {
+        var url = sourceUrl(hlsSources[0]) || data.video_link;
+        if (url) playHLS(proxyUrl(url, ''), hlsSources, { type: 'hls' });
+    } else if (data.source_type === 'mp4' && data.video_link) {
+        playHLS(proxyUrl(data.video_link, ''), mp4Sources, { type: 'mp4' });
+    } else if (embedSources.length) {
+        // Use embed sources — either explicitly desired or as fallback
         playEmbed(embedSources[0].url);
     } else {
         showNoSourcesMessage();
@@ -631,9 +1110,15 @@ function fetchAndLoadSources(isAutoFallback) {
     Chanime.watch(curProv, cfg.animeId, state.language || cfg.language, cfg.episodeNumber)
     .then(function(data) {
         const hasHls   = (data.hls_sources   || []).length > 0;
+        const hasMp4   = (data.video_sources || []).length > 0 || data.source_type === 'mp4';
         const hasEmbed = (data.embed_sources || []).length > 0;
+        const desiredType = state._desiredStreamType;
 
-        if (data.error || (!hasHls && !hasEmbed)) {
+        // If we wanted HLS but only got embed, that's still usable — don't treat as failure
+        var effectivelyEmpty = !hasHls && !hasMp4 && !hasEmbed;
+        var desiredMissing   = desiredType === 'hls' && !hasHls && !hasMp4 && !hasEmbed;
+
+        if (data.error || effectivelyEmpty) {
             markProviderFailed(curProv);
             const next = getNextAvailableProvider(curProv);
             if (next) {
@@ -642,6 +1127,25 @@ function fetchAndLoadSources(isAutoFallback) {
                 _isFallbackInProgress = true;
                 fetchAndLoadSources(true);
                 return;
+            }
+            // All providers exhausted for current desired type
+            // If we were looking for HLS, retry with embed from any provider
+            if (desiredType === 'hls') {
+                state._desiredStreamType = 'embed';
+                // Reset the failed providers for embed — they only failed for HLS
+                // (fully-failed providers stay failed)
+                var embedNext = getNextAvailableProvider(curProv);
+                if (!embedNext && !isProviderFullyFailed(curProv) && !isProviderFailedForType(curProv, 'embed')) {
+                    embedNext = curProv;
+                }
+                if (embedNext) {
+                    var embedName = PROVIDER_DISPLAY_NAMES[embedNext] || embedNext;
+                    showToast('HLS unavailable — trying <strong>' + embedName + '</strong> embed', 'info');
+                    state.provider = embedNext;
+                    _isFallbackInProgress = true;
+                    fetchAndLoadSources(true);
+                    return;
+                }
             }
             _isFallbackInProgress = false;
             showNoSourcesMessage();
@@ -659,6 +1163,19 @@ function fetchAndLoadSources(isAutoFallback) {
         if (window.WATCH_CONFIG) {
             window.WATCH_CONFIG.intro = globalTimestamps.intro;
             window.WATCH_CONFIG.outro = globalTimestamps.outro;
+            if (data.anime_name && (!window.WATCH_CONFIG.animeName || /^\d+$/.test(window.WATCH_CONFIG.animeName))) {
+                window.WATCH_CONFIG.animeName = data.anime_name;
+                document.title = `${data.anime_name}, Episode ${cfg.episodeNumber} - YumeZone`;
+                var titleEl = document.getElementById('watch-episode-title');
+                if (titleEl) {
+                    var epTitle = '';
+                    if (state.episodesList) {
+                        var ep = state.episodesList.find(e => String(e.number) === String(cfg.episodeNumber));
+                        if (ep) epTitle = ep.title || '';
+                    }
+                    titleEl.textContent = `${cfg.episodeNumber}. ${epTitle || data.anime_name || 'Episode'}`;
+                }
+            }
         }
 
         resetWatchedFlag();
@@ -667,7 +1184,7 @@ function fetchAndLoadSources(isAutoFallback) {
         if (ss) {
             ss.querySelectorAll('.server-pill').forEach(function(p) { p.classList.remove('active'); });
             const dt   = state._desiredStreamType;
-            const type = dt || data.source_type || (hasHls ? 'hls' : 'embed');
+            const type = dt || (data.source_type === 'mp4' ? 'hls' : data.source_type) || (hasHls || hasMp4 ? 'hls' : 'embed');
             const act  = ss.querySelector('.server-pill[data-provider="' + curProv + '"][data-stream-type="' + type + '"]');
             if (act) act.classList.add('active');
             ss.classList.remove('loading');
@@ -676,7 +1193,7 @@ function fetchAndLoadSources(isAutoFallback) {
         if (ss) ss.classList.remove('loading');
     })
     .catch(function(err) {
-        console.error('[Sources] fetch error:', err);
+
         markProviderFailed(curProv);
         var next = getNextAvailableProvider(curProv);
         if (next) { showFallbackToast(curProv, next); state.provider = next; _isFallbackInProgress = true; fetchAndLoadSources(true); return; }
@@ -702,6 +1219,7 @@ function switchLanguage(lang) {
         b.classList.toggle('active', bl === lang.toLowerCase());
     });
     document.querySelectorAll('.server-pill.unavailable').forEach(function(p) { p.classList.remove('unavailable'); });
+    renderServerPills();
     fetchAndLoadSources();
 }
 
@@ -810,6 +1328,40 @@ function markEpisodeWatched() {
                 if (shell.syncMute) shell.syncMute();
                 show();
                 break;
+            case 't':
+                e.preventDefault();
+                if (window.innerWidth > 1024) {
+                    const mainLayout = document.querySelector('.watch-main');
+                    if (mainLayout) {
+                        const isHidden = mainLayout.classList.toggle('hide-sidebar');
+                        const toggleBtn = document.getElementById('btn-toggle-sidebar');
+                        if (toggleBtn) toggleBtn.classList.toggle('active', isHidden);
+                        if (window.showToast) {
+                            showToast('Episode sidebar ' + (isHidden ? 'hidden' : 'shown'), 'success');
+                        }
+                    }
+                }
+                break;
+            case 'c':
+                e.preventDefault();
+                const lightsBtn = document.getElementById('btn-lightsoff');
+                if (lightsBtn) lightsBtn.click();
+                break;
+            case 'n':
+                e.preventDefault();
+                const nativeBtn = document.getElementById('btn-native');
+                if (nativeBtn) nativeBtn.click();
+                break;
+            case '/':
+                e.preventDefault();
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) searchInput.focus();
+                break;
+            case '?':
+                e.preventDefault();
+                const sModalBtn = document.getElementById('btn-shortcuts');
+                if (sModalBtn) sModalBtn.click();
+                break;
         }
     });
 })();
@@ -838,6 +1390,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+document.addEventListener('DOMContentLoaded', initWatchTogetherCreate);
 
 // ── Server pill clicks ────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -906,36 +1460,844 @@ document.addEventListener('DOMContentLoaded', function() {
     tick(); setInterval(tick, 1000);
 });
 
+
+function initWatchQuickBar() {
+    const autoplayToggle = document.getElementById('q-autoplay');
+    const autoskipToggle = document.getElementById('q-autoskip');
+    const autonextToggle = document.getElementById('q-autonext');
+    const skipfillerToggle = document.getElementById('q-skipfiller');
+    
+    const chkAutoplay = document.getElementById('chk-autoplay');
+    const chkAutoskip = document.getElementById('chk-autoskip');
+    const chkAutonext = document.getElementById('chk-autonext');
+    const chkSkipfiller = document.getElementById('chk-skipfiller');
+
+    // Load initial states from localStorage
+    // 1. Autoplay player on load
+    const isAutoplay = localStorage.getItem('yume_player_autoplay') !== 'false'; // default to true
+    if (chkAutoplay) {
+        chkAutoplay.checked = isAutoplay;
+        autoplayToggle.classList.toggle('active', isAutoplay);
+    }
+    
+    // 2. Auto Skip Intro/Outro
+    const isAutoskip = localStorage.getItem('yume_skip_intro') === 'true'; // default to false
+    if (chkAutoskip) {
+        chkAutoskip.checked = isAutoskip;
+        autoskipToggle.classList.toggle('active', isAutoskip);
+    }
+    
+    // 3. Auto Next Episode
+    const isAutonext = localStorage.getItem('yume_autoplay') === 'true'; // default to false
+    if (chkAutonext) {
+        chkAutonext.checked = isAutonext;
+        autonextToggle.classList.toggle('active', isAutonext);
+    }
+
+    // 4. Auto Skip Filler
+    const isSkipfiller = localStorage.getItem('yume_skip_filler') === 'true'; // default to false
+    if (chkSkipfiller) {
+        chkSkipfiller.checked = isSkipfiller;
+        skipfillerToggle?.classList.toggle('active', isSkipfiller);
+    }
+
+    // Toggle click listeners
+    autoplayToggle?.addEventListener('click', e => {
+        e.preventDefault();
+        const newVal = !chkAutoplay.checked;
+        chkAutoplay.checked = newVal;
+        localStorage.setItem('yume_player_autoplay', newVal ? 'true' : 'false');
+        autoplayToggle.classList.toggle('active', newVal);
+        
+        // Update actual video autoplay attribute if video exists
+        const vid = document.getElementById('yz-video');
+        if (vid) vid.autoplay = newVal;
+        
+        showToast('Autoplay ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
+
+    autoskipToggle?.addEventListener('click', e => {
+        e.preventDefault();
+        const newVal = !chkAutoskip.checked;
+        chkAutoskip.checked = newVal;
+        localStorage.setItem('yume_skip_intro', newVal ? 'true' : 'false');
+        autoskipToggle.classList.toggle('active', newVal);
+        
+        // Sync with gear player settings menu if visible
+        const playerCurSkipLbl = document.getElementById('yz-cur-skip');
+        if (playerCurSkipLbl) playerCurSkipLbl.textContent = newVal ? 'On' : 'Off';
+        
+        showToast('Auto Skip ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
+
+    autonextToggle?.addEventListener('click', e => {
+        e.preventDefault();
+        const newVal = !chkAutonext.checked;
+        chkAutonext.checked = newVal;
+        localStorage.setItem('yume_autoplay', newVal ? 'true' : 'false');
+        autonextToggle.classList.toggle('active', newVal);
+        
+        // Sync with gear player settings menu if visible
+        const playerCurAutoplayLbl = document.getElementById('yz-cur-autoplay');
+        if (playerCurAutoplayLbl) playerCurAutoplayLbl.textContent = newVal ? 'On' : 'Off';
+        
+        showToast('Auto Play ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
+
+    skipfillerToggle?.addEventListener('click', e => {
+        e.preventDefault();
+        const newVal = !chkSkipfiller.checked;
+        chkSkipfiller.checked = newVal;
+        localStorage.setItem('yume_skip_filler', newVal ? 'true' : 'false');
+        skipfillerToggle.classList.toggle('active', newVal);
+        
+        showToast('Skip Filler ' + (newVal ? 'Enabled' : 'Disabled'), 'success');
+    });
+
+    // ── Shortcuts Modal ──
+    const btnShortcuts = document.getElementById('btn-shortcuts');
+    const modalShortcuts = document.getElementById('shortcuts-modal');
+    const closeShortcutsModal = document.getElementById('close-shortcuts-modal');
+    const closeShortcutsBackdrop = document.getElementById('close-shortcuts-backdrop');
+
+    if (btnShortcuts && modalShortcuts) {
+        btnShortcuts.addEventListener('click', () => {
+            modalShortcuts.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        });
+
+        const closeShortcuts = () => {
+            modalShortcuts.style.display = 'none';
+            document.body.style.overflow = '';
+        };
+
+        closeShortcutsModal?.addEventListener('click', closeShortcuts);
+        closeShortcutsBackdrop?.addEventListener('click', closeShortcuts);
+    }
+
+    // ── Lights Off ──
+    const btnLightsOff = document.getElementById('btn-lightsoff');
+    const lightsOffOverlay = document.getElementById('lights-off-overlay');
+
+    if (btnLightsOff) {
+        let isLightsOff = false;
+        
+        const toggleLights = () => {
+            isLightsOff = !isLightsOff;
+            document.body.classList.toggle('lights-off-active', isLightsOff);
+            btnLightsOff.classList.toggle('active', isLightsOff);
+            
+            showToast('Cinematic Lights ' + (isLightsOff ? 'Off' : 'On'), 'success');
+        };
+
+        btnLightsOff.addEventListener('click', toggleLights);
+        lightsOffOverlay?.addEventListener('click', toggleLights);
+    }
+
+    // ── Native Player ──
+    const btnNative = document.getElementById('btn-native');
+    if (btnNative) {
+        const isNative = localStorage.getItem('yume_native_player') === 'true';
+        btnNative.classList.toggle('active', isNative);
+
+        btnNative.addEventListener('click', () => {
+            const newVal = !btnNative.classList.contains('active');
+            btnNative.classList.toggle('active', newVal);
+            localStorage.setItem('yume_native_player', newVal ? 'true' : 'false');
+            showToast('Native Controls ' + (newVal ? 'Enabled (refresh to apply)' : 'Disabled (refresh to apply)'), 'success');
+            
+            // Apply immediately if video exists
+            const vid = document.getElementById('yz-video');
+            if (vid) {
+                vid.controls = newVal;
+                // Hide custom player controls if native is active
+                const ctrls = document.getElementById('yz-controls');
+                if (ctrls) ctrls.style.display = newVal ? 'none' : '';
+            }
+        });
+    }
+
+    // ── Sidebar Toggle Button ──
+    const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+    if (btnToggleSidebar) {
+        btnToggleSidebar.addEventListener('click', () => {
+            if (window.innerWidth > 1024) {
+                const mainLayout = document.querySelector('.watch-main');
+                if (mainLayout) {
+                    const isHidden = mainLayout.classList.toggle('hide-sidebar');
+                    btnToggleSidebar.classList.toggle('active', isHidden);
+                    if (window.showToast) {
+                        showToast('Episode sidebar ' + (isHidden ? 'hidden' : 'shown'), 'success');
+                    }
+                }
+            } else {
+                if (window.showToast) {
+                    showToast('Sidebar toggling is only available on desktop', 'error');
+                }
+            }
+        });
+    }
+
+    // ── Flip Layout Button (Sidebar Left/Right) ──
+    const btnFlipLayout = document.getElementById('btn-flip-layout');
+    const mainLayout = document.querySelector('.watch-main');
+    
+    let isSidebarRight = false;
+    try {
+        isSidebarRight = localStorage.getItem('yume_sidebar_right') === 'true';
+    } catch(e) {}
+
+    if (mainLayout) {
+        mainLayout.classList.toggle('sidebar-right', isSidebarRight);
+    }
+    if (btnFlipLayout) {
+        btnFlipLayout.classList.toggle('active', isSidebarRight);
+    }
+
+    if (btnFlipLayout) {
+        btnFlipLayout.addEventListener('click', () => {
+            if (window.innerWidth > 1024) {
+                if (mainLayout) {
+                    const isRight = mainLayout.classList.toggle('sidebar-right');
+                    btnFlipLayout.classList.toggle('active', isRight);
+                    try {
+                        localStorage.setItem('yume_sidebar_right', isRight ? 'true' : 'false');
+                    } catch(e) {}
+                    if (window.showToast) {
+                        showToast('Sidebar moved to the ' + (isRight ? 'right' : 'left'), 'success');
+                    }
+                }
+            } else {
+                if (window.showToast) {
+                    showToast('Layout flipping is only available on desktop', 'error');
+                }
+            }
+        });
+    }
+}
+
+
 // ── DOMContentLoaded — init everything ───────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-    // Init watch state
+// Progressive background discovery functions
+function loadZenithProgressively() {
     var cfg = window.WATCH_CONFIG || {};
+    if (!cfg.animeId) return;
+    
+    fetch('/api/watch/' + cfg.animeId + '/episodes/zenith')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.blocks && data.blocks.zenith) {
+            var state = window._watchState || {};
+            state.providers_map = state.providers_map || {};
+            state.providers_map['zenith'] = data.blocks.zenith;
+            
+            state.providers = state.providers || [];
+            if (!state.providers.includes('zenith')) {
+                state.providers.unshift('zenith'); // Add at the start of array
+                renderServerPills();
+                
+                // Switch if it was preferred
+                var preferred = localStorage.getItem('yumePreferredServer') || cfg.provider;
+                if (preferred === 'zenith' && state.provider !== 'zenith') {
+                    showToast('Switching to preferred provider: <strong>Zenith</strong>', 'info');
+                    switchProvider('zenith');
+                }
+            }
+        }
+    })
+    .catch(function() {});
+}
+
+function loadAnimeXProgressively() {
+    var cfg = window.WATCH_CONFIG || {};
+    if (!cfg.animeId) return;
+    
+    fetch('/api/watch/' + cfg.animeId + '/episodes/animex')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.blocks) {
+            var state = window._watchState || {};
+            state.providers_map = state.providers_map || {};
+            
+            var addedAny = false;
+            Object.keys(data.blocks).forEach(function(key) {
+                var providerKey = 'ax-' + key;
+                if (!PROVIDER_DISPLAY_NAMES[providerKey]) {
+                    return;
+                }
+                state.providers_map[providerKey] = data.blocks[key];
+                
+                state.providers = state.providers || [];
+                if (!state.providers.includes(providerKey)) {
+                    var _PP = ['zenith','kiwi','ax-mimi','ax-wave','ax-shiro','ax-yuki','ax-zen','ax-beep','bee','zoro','anixtv'];
+                    state.providers.push(providerKey);
+                    state.providers.sort(function(a, b) {
+                        var idxA = _PP.indexOf(a) !== -1 ? _PP.indexOf(a) : 99;
+                        var idxB = _PP.indexOf(b) !== -1 ? _PP.indexOf(b) : 99;
+                        return idxA - idxB;
+                    });
+                    addedAny = true;
+                }
+            });
+            
+            if (addedAny) {
+                renderServerPills();
+                
+                // Switch if preferred AX server resolved
+                var preferred = localStorage.getItem('yumePreferredServer') || cfg.provider;
+                if (preferred && preferred.indexOf('ax-') === 0 && state.provider !== preferred && state.providers.includes(preferred)) {
+                    showToast('Switching to preferred provider: <strong>' + preferred + '</strong>', 'info');
+                    switchProvider(preferred);
+                }
+            }
+        }
+    })
+    .catch(function() {});
+}
+
+function loadHindiProgressively() {
+    var cfg = window.WATCH_CONFIG || {};
+    var state = window._watchState || {};
+    fetch('/api/watch/' + cfg.animeId + '/episodes/hindi?episode=' + cfg.episodeNumber)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var btnDub = document.getElementById('btnDub') || document.querySelector('.lang-toggle button:last-child');
+        if (data.success && data.hindi_available) {
+            if (btnDub) {
+                btnDub.removeAttribute('disabled');
+                btnDub.removeAttribute('title');
+                btnDub.onclick = function() { switchLanguage('dub'); };
+                btnDub.className = 'lang-btn' + (state.language === 'dub' ? ' active' : '');
+            }
+            
+            state.providers = state.providers || [];
+            if (!state.providers.includes('anixtv')) {
+                state.providers.push('anixtv');
+            }
+            state.providers_map = state.providers_map || {};
+            state.providers_map['anixtv'] = {
+                "episodes": {
+                    "sub": [{"number": cfg.episodeNumber}],
+                    "dub": [{"number": cfg.episodeNumber}]
+                }
+            };
+            renderServerPills();
+        } else {
+            if (state.providers) {
+                var idx = state.providers.indexOf('anixtv');
+                if (idx !== -1) {
+                    state.providers.splice(idx, 1);
+                }
+            }
+            if (!state.dubAvailable) {
+                if (btnDub) {
+                    btnDub.setAttribute('disabled', 'true');
+                    btnDub.setAttribute('title', 'Dub not available');
+                    btnDub.onclick = null;
+                    btnDub.className = 'lang-btn';
+                }
+                if (state.language === 'dub') {
+                    showToast('Hindi dub not available for this episode, switching to SUB', 'info');
+                    switchLanguage('sub');
+                    return;
+                }
+            }
+            renderServerPills();
+        }
+    })
+    .catch(function() {});
+}
+
+// Global server pills rendering using existing capabilities map
+function renderServerPills() {
+    var ss = document.getElementById('serverSections');
+    if (!ss) return;
+    
+    ss.innerHTML = '';
+    var state = window._watchState || {};
+    var sorted = state.providers || [];
+    if (sorted.length === 0) return;
+    
+    var hlsProviders = [];
+    var embedProviders = [];
+    var _PROVIDER_CAPABILITIES = {
+        "zenith":    {"hls": true,  "embed": false, "mp4": true},
+        "kiwi":      {"hls": true,  "embed": true},
+        "ax-mimi":   {"hls": true,  "embed": false},
+        "ax-wave":   {"hls": true,  "embed": false},
+        "ax-shiro":  {"hls": true,  "embed": false},
+        "ax-yuki":   {"hls": true,  "embed": false},
+        "ax-zen":    {"hls": true,  "embed": false},
+        "ax-beep":   {"hls": true,  "embed": false},
+        "bee":       {"hls": true,  "embed": false},
+        "zoro":      {"hls": false, "embed": true},
+        "anixtv":    {"hls": false, "embed": true},
+    };
+
+    var map = state.providers_map || {};
+    var epNum = (window.WATCH_CONFIG || {}).episodeNumber;
+    var lang = state.language || (window.WATCH_CONFIG || {}).language || 'sub';
+
+    // Filter helper to ensure we only show servers that have the current episode
+    function hasEpisodeForProvider(p) {
+        if (p === 'anixtv') return lang === 'dub';
+        if (p === 'zoro') return true;
+        
+        if (!map[p] || !map[p].episodes) return false;
+        var eps = map[p].episodes[lang] || [];
+        
+        var targetNum = parseFloat(epNum);
+        for (var i = 0; i < eps.length; i++) {
+            if (parseFloat(eps[i].number) === targetNum) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    sorted.forEach(function(p) {
+        if (!hasEpisodeForProvider(p)) return; // Filter out not working/non-existent episode servers!
+        if (!PROVIDER_DISPLAY_NAMES[p]) return; // Bulletproof filter to only show named servers!
+        
+        var caps = _PROVIDER_CAPABILITIES[p] || {"hls": true, "embed": false};
+        if (caps.hls) {
+            hlsProviders.push(p);
+        } else if (caps.embed) {
+            embedProviders.push(p);
+        }
+    });
+    
+    var selectedProvider = state.provider || (window.WATCH_CONFIG || {}).provider;
+    var desiredType = state._desiredStreamType || (window.WATCH_CONFIG || {}).sourceType || (hlsProviders.includes(selectedProvider) ? 'hls' : 'embed');
+    if (desiredType === 'mp4') desiredType = 'hls';
+
+    // Render HLS section
+    if (hlsProviders.length > 0) {
+        var sec = document.createElement('div');
+        sec.className = 'server-section';
+        sec.innerHTML = `
+            <div class="server-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                INTERNAL
+            </div>
+            <div class="server-section-pills" id="hlsServerPills"></div>
+        `;
+        var pillsContainer = sec.querySelector('#hlsServerPills');
+        hlsProviders.forEach(function(p) {
+            var btn = document.createElement('button');
+            btn.className = 'server-pill' + (p === selectedProvider && desiredType === 'hls' ? ' active' : '');
+            btn.dataset.streamType = 'hls';
+            btn.dataset.provider = p;
+            btn.textContent = PROVIDER_DISPLAY_NAMES[p] || p.charAt(0).toUpperCase() + p.slice(1).replace('-', ' ');
+            pillsContainer.appendChild(btn);
+        });
+        ss.appendChild(sec);
+    }
+    
+    // Render Embed section
+    if (embedProviders.length > 0) {
+        var sec = document.createElement('div');
+        sec.className = 'server-section';
+        sec.innerHTML = `
+            <div class="server-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                EXTERNAL
+            </div>
+            <div class="server-section-pills" id="embedServerPills"></div>
+        `;
+        var pillsContainer = sec.querySelector('#embedServerPills');
+        embedProviders.forEach(function(p) {
+            var btn = document.createElement('button');
+            btn.className = 'server-pill' + (p === selectedProvider && desiredType === 'embed' ? ' active' : '');
+            btn.dataset.streamType = 'embed';
+            btn.dataset.provider = p;
+            btn.textContent = PROVIDER_DISPLAY_NAMES[p] || p.charAt(0).toUpperCase() + p.slice(1).replace('-', ' ');
+            pillsContainer.appendChild(btn);
+        });
+        ss.appendChild(sec);
+    }
+}
+
+function scrollActiveEpisodeIntoView(item, container) {
+    if (!item || !container) return;
+    
+    // On mobile screens, do NOT scroll the whole page.
+    const isMobileViewport = window.innerWidth <= 768;
+    if (isMobileViewport) {
+        return;
+    }
+    
+    // For desktop scrollable sidebar container, scroll to active item cleanly without page scroll
+    try {
+        const containerRect = container.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        const relativeTop = itemRect.top - containerRect.top + container.scrollTop;
+        const targetScroll = relativeTop - (container.clientHeight / 2) + (item.clientHeight / 2);
+        
+        container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+        });
+    } catch(e) {
+        // Fallback
+        container.scrollTop = item.offsetTop - container.offsetTop - (container.clientHeight / 2) + (item.clientHeight / 2);
+    }
+}
+
+function renderEpisodeSidebar(episodes) {
+    const listContainer = document.getElementById('episodeList');
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = '';
+    
+    if (!episodes || episodes.length === 0) {
+        listContainer.innerHTML = `
+            <div class="episodes-empty-state">
+                <div class="ee-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+                <h3>No Episodes Yet</h3>
+                <p>We couldn't find any episodes for this anime. Check back later!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const currentEpNum = String(window.WATCH_CONFIG.episodeNumber);
+    const animeId = window.WATCH_CONFIG.animeId;
+    
+    episodes.forEach(function(ep) {
+        const isCurrent = String(ep.number) === currentEpNum;
+        const item = document.createElement('a');
+        item.href = `/watch/${animeId}/ep-${ep.number}`;
+        item.className = 'episode-sidebar-item' + (isCurrent ? ' current' : '') + (ep.isFiller ? ' is-filler' : '');
+        item.dataset.number = ep.number;
+        
+        let fillerBadge = ep.isFiller ? '<span class="filler-badge">Filler</span>' : '';
+        
+        item.innerHTML = `
+            <div class="episode-sidebar-num">${ep.number}</div>
+            <div class="episode-info">
+                <div class="episode-title">
+                    ${ep.title || 'Episode ' + ep.number}
+                    ${fillerBadge}
+                </div>
+            </div>
+        `;
+        
+        listContainer.appendChild(item);
+    });
+    
+    // Trigger scroll to active episode if needed
+    setTimeout(function() {
+        const activeItem = listContainer.querySelector('.episode-sidebar-item.current');
+        if (activeItem) scrollActiveEpisodeIntoView(activeItem, listContainer);
+    }, 200);
+}
+
+function updateNavigationButtons(episodes) {
+    const currentEpNum = parseInt(window.WATCH_CONFIG.episodeNumber);
+    const prevBtn = document.querySelector('.watch-nav-left a:first-child');
+    const nextBtn = document.querySelector('.watch-nav-left a:last-child');
+    
+    if (!episodes || episodes.length === 0) return;
+    
+    const currentIdx = episodes.findIndex(function(ep) { return parseInt(ep.number) === currentEpNum; });
+    
+    if (currentIdx > 0) {
+        const prevEp = episodes[currentIdx - 1];
+        if (prevBtn) {
+            prevBtn.href = `/watch/${window.WATCH_CONFIG.animeId}/ep-${prevEp.number}`;
+            prevBtn.className = 'btn btn-sm btn-primary';
+            prevBtn.removeAttribute('aria-disabled');
+            prevBtn.removeAttribute('onclick');
+            prevBtn.style.opacity = '1';
+            prevBtn.style.cursor = 'pointer';
+        }
+    } else {
+        if (prevBtn) {
+            prevBtn.href = 'javascript:void(0)';
+            prevBtn.className = 'btn btn-sm btn-ghost';
+            prevBtn.setAttribute('aria-disabled', 'true');
+            prevBtn.setAttribute('onclick', 'return false;');
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.cursor = 'not-allowed';
+        }
+    }
+    
+    if (currentIdx !== -1 && currentIdx < episodes.length - 1) {
+        const nextEp = episodes[currentIdx + 1];
+        if (nextBtn) {
+            nextBtn.href = `/watch/${window.WATCH_CONFIG.animeId}/ep-${nextEp.number}`;
+            nextBtn.className = 'btn btn-sm btn-primary';
+            nextBtn.removeAttribute('aria-disabled');
+            nextBtn.setAttribute('onclick', 'window._forceEpisodeComplete = true;');
+            nextBtn.style.opacity = '1';
+            nextBtn.style.cursor = 'pointer';
+        }
+    } else {
+        if (nextBtn) {
+            nextBtn.href = 'javascript:void(0)';
+            nextBtn.className = 'btn btn-sm btn-ghost';
+            nextBtn.setAttribute('aria-disabled', 'true');
+            nextBtn.setAttribute('onclick', 'return false;');
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+function navigateToEpisode(epNum, isPopState) {
+    if (!epNum) return;
+    
+    // 1. Save watch history of current episode if video is playing
+    const vid = document.getElementById('yz-video');
+    if (vid) {
+        try {
+            saveWatchHistory(vid.currentTime, vid.duration);
+        } catch(e) {
+
+        }
+    }
+    
+    // 2. Update config and state
+    const targetEpNum = parseInt(epNum, 10) || parseFloat(epNum) || epNum;
+    if (window.WATCH_CONFIG) {
+        window.WATCH_CONFIG.episodeNumber = targetEpNum;
+    }
+    if (window.COMMENTS_CONFIG) {
+        window.COMMENTS_CONFIG.episodeNumber = targetEpNum;
+    }
+    if (window._watchState) {
+        window._watchState.episodeNumber = targetEpNum;
+    }
+    
+    // 3. Clear failed providers and reset fallback flags
+    resetFailedProviders();
+    resetWatchedFlag();
+    globalTimestamps = { intro: null, outro: null };
+    _lastProbe = { t: 0, ct: -1 };
+    
+    // 4. Update browser history / URL (unless triggered by popstate)
+    const newUrl = `/watch/${(window.WATCH_CONFIG && window.WATCH_CONFIG.animeId) || ''}/ep-${targetEpNum}`;
+    if (!isPopState) {
+        history.pushState(null, '', newUrl);
+    }
+    
+    // 5. Update browser title
+    const animeName = (window.WATCH_CONFIG && window.WATCH_CONFIG.animeName) || '';
+    document.title = `${animeName}, Episode ${targetEpNum} - YumeZone`;
+    
+    // 6. Update the episode title heading
+    const titleEl = document.getElementById('watch-episode-title');
+    if (titleEl) {
+        let epTitle = '';
+        if (window._watchState && window._watchState.episodesList) {
+            const ep = window._watchState.episodesList.find(e => String(e.number) === String(targetEpNum));
+            if (ep) epTitle = ep.title || '';
+        }
+        titleEl.textContent = `${targetEpNum}. ${epTitle || animeName || 'Episode'}`;
+    }
+    
+    // 7. Show player skeleton loader while resolving sources
+    const playerArea = document.getElementById('player-area');
+    if (playerArea) {
+        playerArea.innerHTML = `
+            <div class="player-skeleton skeleton" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0c0c0c; z-index: 10;">
+                <div style="text-align: center; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                    <div class="yz-spinner" style="border-top-color: var(--accent);"></div>
+                    <span style="font-size: 0.85rem; font-weight: 600; letter-spacing: 1.5px; opacity: 0.75; text-transform: uppercase;">RESOLVING STREAM SOURCES...</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Hide error fallback if it was shown
+    const errFallback = document.getElementById('errorFallbackContainer');
+    if (errFallback) errFallback.style.display = 'none';
+    
+    // 8. Re-render/update UI components
+    if (window._watchState) {
+        // Redraw server pills
+        renderServerPills();
+        
+        // Update sidebar items highlight
+        const listContainer = document.getElementById('episodeList');
+        if (listContainer) {
+            listContainer.querySelectorAll('.episode-sidebar-item').forEach(function(item) {
+                const isCurrent = String(item.dataset.number) === String(targetEpNum);
+                item.classList.toggle('current', isCurrent);
+                if (isCurrent) {
+                    scrollActiveEpisodeIntoView(item, listContainer);
+                }
+            });
+        }
+        
+        // Update prev/next buttons
+        if (window._watchState.episodesList) {
+            updateNavigationButtons(window._watchState.episodesList);
+        }
+    }
+    
+    // 9. Reload streaming sources
+    _isFallbackInProgress = true;
+    fetchAndLoadSources(true);
+    
+    // 10. Load progressive background tasks (for the new episode)
+    setTimeout(loadZenithProgressively, 10);
+    setTimeout(loadAnimeXProgressively, 50);
+    setTimeout(loadHindiProgressively, 100);
+    
+    // 11. Refresh comments & reactions
+    if (window._commentsManager) {
+        window._commentsManager.episodeNum = targetEpNum;
+        window._commentsManager._loadComments();
+        window._commentsManager._loadEpisodeReaction();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initWatchQuickBar();
+    var cfg = window.WATCH_CONFIG || {};
+    
+    // Init watch state with loading placeholders
     window._watchState = {
         animeId:       cfg.animeId,
         episodeNumber: cfg.episodeNumber,
         language:      cfg.language,
-        provider:      cfg.provider,
-        providers:     cfg.providers || []
+        provider:      localStorage.getItem('yumePreferredServer') || cfg.provider || 'kiwi',
+        providers:     []
     };
 
-    // Play initial stream from server-rendered WATCH_CONFIG
-    if (cfg.videoLink && cfg.videoLink.length > 0) {
-        if (cfg.sourceType === 'embed') {
-            playEmbed(cfg.videoLink);
-        } else {
-            playHLS(cfg.videoLink, null);
-        }
-    } else {
-        // No server-side source — try AJAX fallback immediately
-        if (cfg.provider && cfg.providers && cfg.providers.length > 0) {
-            markProviderFailed(cfg.provider);
-            var next = getNextAvailableProvider(cfg.provider);
-            if (next) {
-                window._watchState.provider = next;
-                _isFallbackInProgress = true;
-                fetchAndLoadSources(true);
+    // ── Fetch episodes list dynamically ──
+    fetch('/api/watch/' + cfg.animeId + '/episodes')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.episodes) {
+            // Update watch state
+            var state = window._watchState;
+            state.episodesList = data.episodes;
+            state.providers = data.sorted_providers || [];
+            state.providers_map = data.providers_map || {};
+            
+            // Populate WATCH_CONFIG properties
+            if (window.WATCH_CONFIG) {
+                window.WATCH_CONFIG.providers = state.providers;
+                if (data.anime_name && (!window.WATCH_CONFIG.animeName || /^\d+$/.test(window.WATCH_CONFIG.animeName))) {
+                    window.WATCH_CONFIG.animeName = data.anime_name;
+                    
+                    // Update browser title
+                    document.title = `${data.anime_name}, Episode ${cfg.episodeNumber} - YumeZone`;
+                    
+                    // Update episode title heading
+                    var titleEl = document.getElementById('watch-episode-title');
+                    if (titleEl) {
+                        var epTitle = '';
+                        var ep = data.episodes.find(e => String(e.number) === String(cfg.episodeNumber));
+                        if (ep) epTitle = ep.title || '';
+                        titleEl.textContent = `${cfg.episodeNumber}. ${epTitle || data.anime_name || 'Episode'}`;
+                    }
+                }
             }
+
+            // Render UI
+            renderEpisodeSidebar(data.episodes);
+            updateNavigationButtons(data.episodes);
+            
+            // Language updates if dub is discovered
+            if (data.dub_available) {
+                var btnDub = document.getElementById('btnDub') || document.querySelector('.lang-toggle button:last-child');
+                if (btnDub) {
+                    btnDub.removeAttribute('disabled');
+                    btnDub.removeAttribute('title');
+                    btnDub.onclick = function() { switchLanguage('dub'); };
+                    btnDub.className = 'lang-btn' + (state.language === 'dub' ? ' active' : '');
+                }
+            }
+
+            // Fallback provider checking
+            if (!state.providers.includes(state.provider)) {
+                state.provider = data.default_provider || state.providers[0] || 'kiwi';
+            }
+
+            renderServerPills();
+
+            // Resolve and play streaming links
+            _isFallbackInProgress = true;
+            fetchAndLoadSources(true);
+
+            // Progressive background loading tasks to reduce load time
+            setTimeout(loadZenithProgressively, 10);
+            setTimeout(loadAnimeXProgressively, 50);
+            setTimeout(loadHindiProgressively, 100);
+        } else {
+            showNoSourcesMessage();
         }
+    })
+    .catch(function(err) {
+
+        showNoSourcesMessage();
+    });
+});
+
+// ── Intercept links for AJAX episode switching ────────────────────
+document.addEventListener('click', function(e) {
+    // 1. Check if it's the prev button
+    var prevBtn = document.querySelector('.watch-nav-left a:first-child');
+    if (prevBtn && prevBtn.contains(e.target)) {
+        if (prevBtn.getAttribute('aria-disabled') === 'true' || prevBtn.getAttribute('href') === 'javascript:void(0)') {
+            return;
+        }
+        e.preventDefault();
+        var match = prevBtn.getAttribute('href').match(/ep-(\d+(?:\.\d+)?)/);
+        if (match) {
+            navigateToEpisode(match[1]);
+        }
+        return;
+    }
+
+    // 2. Check if it's the next button
+    var nextBtn = document.getElementById('next-episode-btn');
+    if (nextBtn && nextBtn.contains(e.target)) {
+        if (nextBtn.getAttribute('aria-disabled') === 'true' || nextBtn.getAttribute('href') === 'javascript:void(0)') {
+            return;
+        }
+        e.preventDefault();
+        var match = nextBtn.getAttribute('href').match(/ep-(\d+(?:\.\d+)?)/);
+        if (match) {
+            window._forceEpisodeComplete = true;
+            navigateToEpisode(match[1]);
+        }
+        return;
+    }
+
+    // 3. Check if it's a sidebar episode item
+    var sidebarItem = e.target.closest('.episode-sidebar-item');
+    if (sidebarItem) {
+        e.preventDefault();
+        var epNum = sidebarItem.dataset.number;
+        if (epNum) {
+            navigateToEpisode(epNum);
+        }
+        return;
+    }
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function() {
+    var match = window.location.pathname.match(/ep-(\d+(?:\.\d+)?)/);
+    if (match) {
+        navigateToEpisode(match[1], true);
     }
 });
 

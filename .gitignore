@@ -223,3 +223,5 @@ __marimo__/
 api-test.py
 worker.js
 kurovexa
+test*.py
+tests/

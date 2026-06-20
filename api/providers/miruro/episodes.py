@@ -13,21 +13,24 @@ logger = logging.getLogger(__name__)
 
 # Provider preference order — ONLY working servers (others are filtered out of the watch page)
 PROVIDER_PRIORITY = [
-    "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "bee", "zoro",
+    "zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "ax-beep", "bee", "zoro", "anixtv",
 ]
 
 # Which stream types each provider supports.
 # Used by the template to place providers in the correct section (INTERNAL vs EXTERNAL).
 # Only providers listed in PROVIDER_PRIORITY will appear on the watch page.
 PROVIDER_CAPABILITIES = {
+    "zenith":    {"hls": True,  "embed": False, "mp4": True},
     "kiwi":      {"hls": True,  "embed": True},
     "ax-mimi":   {"hls": True,  "embed": False},
     "ax-wave":   {"hls": True,  "embed": False},
     "ax-shiro":  {"hls": True,  "embed": False},
     "ax-yuki":   {"hls": True,  "embed": False},
     "ax-zen":    {"hls": True,  "embed": False},
+    "ax-beep":   {"hls": True,  "embed": False},
     "bee":       {"hls": True,  "embed": False},
     "zoro":      {"hls": False, "embed": True},   # Megaplay embed only
+    "anixtv":    {"hls": False, "embed": True},   # AnixTv Hindi embed
 }
 
 
@@ -43,7 +46,7 @@ class MiruroEpisodesService:
             return None
 
         best_name = None
-        best_count = -1
+        best_count = 0
 
         for name in PROVIDER_PRIORITY:
             if name not in providers:
@@ -57,7 +60,7 @@ class MiruroEpisodesService:
                 best_count = sub_count
                 best_name = name
 
-        if best_name:
+        if best_name and best_count > 0:
             return best_name
 
         # Fallback: any provider with data, still picking the one with most episodes
@@ -177,7 +180,7 @@ class MiruroEpisodesService:
         result["providers_map"] = providers
         result["default_provider"] = best_provider
 
-        logger.info(
+        logger.debug(
             f"[MiruroEpisodes] anilist_id={anilist_id}, provider={best_provider}, "
             f"sub={result['total_sub_episodes']}, dub={result['total_dub_episodes']}"
         )

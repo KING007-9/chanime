@@ -43,7 +43,7 @@ class MiruroScraper:
         if allowed_origins:
             headers["Origin"] = allowed_origins.split(",")[0]   
 
-        logger.info(f"[MiruroScraper] Initialized with headers: {list(headers.keys())}")
+        logger.debug(f"[MiruroScraper] Initialized with headers: {list(headers.keys())}")
         
         # Initialize base client
         self.client = MiruroBaseClient(url, headers)

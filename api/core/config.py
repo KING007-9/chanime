@@ -21,6 +21,9 @@ class Config:
 
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
 
+    # Hard limit request payloads to protect against DOS (2 Megabytes)
+    MAX_CONTENT_LENGTH = 2 * 1024 * 1024
+
     # Cloudflare
     CLOUDFLARE_SECRET = os.getenv("CLOUDFLARE_SECRET")
     CF_SITE_KEY = os.getenv("CF_SITE_KEY")

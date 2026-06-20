@@ -72,62 +72,76 @@
              alt="{{ manga.title }} Banner">
         <div class="banner-overlay"></div>
     </div>
+    {% else %}
+    <div class="manga-banner-container fallback-banner">
+        <img class="w-full rounded-lg max-h-230 object-cover blurred-fallback" 
+             src="{{ (manga.poster or manga.cover)|manga_cover(manga_referer) }}" 
+             alt="{{ manga.title }} Banner Fallback">
+        <div class="banner-overlay"></div>
+    </div>
     {% endif %}
 
     <!-- Hero Section -->
-    <div class="manga-detail-hero {% if manga.banner %}has-banner{% endif %}">
+    <div class="manga-detail-hero has-banner">
         <div class="manga-detail-cover rounded-inherit">
             <img class="poster size-full block object-cover rounded-inherit"
                  src="{{ (manga.poster or manga.cover)|manga_cover(manga_referer) }}"
                  alt="{{ manga.title }}"
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMzMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMzMCIgZmlsbD0iIzFhMWEyZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LXNpemU9IjE2Ij5ObyBDb3ZlcjwvdGV4dD48L3N2Zz4='">
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMzMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMzMCIgZmlsbD0iJobsMWEyZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LXNpemU9IjE2Ij5ObyBDb3ZlcjwvdGV4dD48L3N2Zz4='">
         </div>
         <div class="manga-detail-info">
             <h1 class="manga-detail-title">{{ manga.title }}</h1>
 
-            <div class="manga-detail-meta">
+            <!-- Upgrade: Glassmorphic Metadata Grid -->
+            <div class="manga-meta-grid">
                 {% if manga.authors and manga.authors != 'Unknown' %}
-                <span class="meta-tag">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    {{ manga.authors }}
-                </span>
+                <div class="manga-meta-card">
+                    <span class="manga-meta-card-label">Author</span>
+                    <span class="manga-meta-card-value" title="{{ manga.authors }}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        {{ manga.authors }}
+                    </span>
+                </div>
                 {% endif %}
 
                 {% if manga.status and manga.status != 'Unknown' %}
-                <span class="meta-tag">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    {{ manga.status }}
-                </span>
+                <div class="manga-meta-card">
+                    <span class="manga-meta-card-label">Status</span>
+                    <span class="manga-meta-card-value" title="{{ manga.status }}">
+                        <span class="status-indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block; background-color: {% if manga.status|lower == 'ongoing' or manga.status|lower == 'publishing' %}#10b981{% else %}#3b82f6{% endif %}; flex-shrink:0;"></span>
+                        {{ manga.status }}
+                    </span>
+                </div>
                 {% endif %}
 
-                {% if manga.views %}
-                <span class="meta-tag">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    {{ manga.views }} views
-                </span>
+                {% if manga.chapters %}
+                <div class="manga-meta-card">
+                    <span class="manga-meta-card-label">Chapters</span>
+                    <span class="manga-meta-card-value">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                        {{ manga.chapters|length }}
+                    </span>
+                </div>
                 {% endif %}
 
                 {% if manga.type %}
-                <span class="meta-tag">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="18" rx="2" ry="2"/>
-                    </svg>
-                    {{ manga.type }}
-                </span>
+                <div class="manga-meta-card">
+                    <span class="manga-meta-card-label">Type</span>
+                    <span class="manga-meta-card-value" title="{{ manga.type }}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                            <rect x="2" y="3" width="20" height="18" rx="2" ry="2"/>
+                        </svg>
+                        {{ manga.type }}
+                    </span>
+                </div>
                 {% endif %}
 
-                <span class="meta-tag" style="background: rgba(168, 85, 247, 0.15); color: var(--primary); border-color: rgba(168, 85, 247, 0.2);">
-                    {{ source_name }}
-                </span>
             </div>
 
             <div class="external-links" style="margin-bottom: 16px;">
@@ -140,12 +154,9 @@
                 {% if manga.malId %}
                 <a href="https://myanimelist.net/manga/{{ manga.malId }}" target="_blank" class="external-pill mal" title="View on MyAnimeList">
                     <img src="https://myanimelist.net/favicon.ico" alt="MAL">
-
                 </a>
                 {% endif %}
             </div>
-
-
 
             {% if manga.genres %}
             <div class="manga-detail-genres">
@@ -155,15 +166,25 @@
             </div>
             {% endif %}
 
+            <!-- Upgrade: Expandable Synopsis container -->
             {% if manga.description %}
-            <div class="manga-detail-description">
-                {{ manga.description }}
+            <div class="manga-detail-description-container">
+                <div class="manga-detail-description expandable" id="manga-description">
+                    {{ manga.description }}
+                    <div class="manga-detail-description-fade"></div>
+                </div>
+                <button class="manga-description-toggle-btn" id="manga-description-toggle" style="display: none;">
+                    <span>Show More</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
             </div>
             {% endif %}
 
             {% if manga.chapters %}
-            <div style="margin-top: var(--space-lg); display: flex; gap: 12px; flex-wrap: wrap;">
-                <a href="/manga/{{ source }}/{{ manga.slug or manga.id }}/read/{{ manga.chapters[0].id if manga.chapters else '' }}" class="btn btn-primary btn-lg" style="display: inline-flex; align-items: center; gap: 8px;">
+            <div style="margin-top: var(--space-lg); display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <a id="btn-start-reading" href="/manga/{{ source }}/{{ manga.slug or manga.id }}/read/{{ manga.chapters[-1].id if manga.chapters else '' }}" class="btn btn-primary btn-lg btn-action-glow" style="display: inline-flex; align-items: center; gap: 8px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -171,7 +192,15 @@
                     Start Reading
                 </a>
                 
-                <button class="btn btn-secondary btn-lg" style="display: inline-flex; align-items: center; gap: 8px;" onclick="window.location.hash = 'chapters'">
+                <!-- Resume Reading Button (JS injected/revealed if history exists) -->
+                <a id="btn-resume-reading" href="#" class="btn btn-lg btn-action-glow" style="display: none; align-items: center; gap: 8px; background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Resume Reading
+                </a>
+                
+                <button class="btn btn-secondary btn-lg btn-action-glow" style="display: inline-flex; align-items: center; gap: 8px;" onclick="document.getElementById('chapters').scrollIntoView({ behavior: 'smooth' })">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="8" y1="6" x2="21" y2="6"/>
                         <line x1="8" y1="12" x2="21" y2="12"/>
@@ -179,11 +208,28 @@
                     </svg>
                     Chapters
                 </button>
+
+                <!-- Favorite / Bookmark Heart Button -->
+                <button id="btn-favorite" class="btn btn-secondary btn-lg btn-action-glow" style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; border-radius: var(--radius-md);" title="Add to Favorites">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: all 0.3s ease;">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                </button>
+
+                <!-- Share Button -->
+                <button id="btn-share" class="btn btn-secondary btn-lg btn-action-glow" style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; border-radius: var(--radius-md);" title="Share Manga">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                </button>
             </div>
             {% endif %}
         </div>
     </div>
-
 
     <!-- Chapters Section -->
     {% if manga.chapters %}
@@ -199,27 +245,78 @@
                     <line x1="3" y1="18" x2="3.01" y2="18"/>
                 </svg>
                 Chapters
-                <span class="chapter-count">{{ manga.chapters|length }} chapters</span>
+                <span class="chapter-count" id="chapter-badge-count">{{ manga.chapters|length }} chapters</span>
             </h2>
         </div>
 
-        <div class="manga-chapter-list">
+        <!-- Upgrade: Interactive Controls Row -->
+        <div class="chapter-controls-row">
+            <div class="chapter-search-wrapper">
+                <input type="text" id="chapter-search" placeholder="Search chapters by number or title..." autocomplete="off">
+                <svg class="chapter-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+            </div>
+            
+            <div class="chapter-filter-pills">
+                <button class="chapter-filter-pill active" data-filter="all">All</button>
+                <button class="chapter-filter-pill" data-filter="unread">Unread</button>
+                <button class="chapter-filter-pill" data-filter="read">Read</button>
+            </div>
+            
+            <button class="chapter-sort-btn desc" id="chapter-sort-btn" title="Toggle Sort Direction">
+                <span>Newest First</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Target Container for JS Interactive Render -->
+        <div class="manga-chapter-list" id="interactive-chapter-list">
+            <!-- Fallback Jinja rendering in case JS is disabled, which will be overwritten by JS -->
             {% for chapter in manga.chapters %}
             <a href="/manga/{{ source }}/{{ manga.slug or manga.id }}/read/{{ chapter.id }}"
-               class="manga-chapter-item">
+               class="manga-chapter-item" data-chapter-id="{{ chapter.id }}">
                 <span class="chapter-title">
                     {{ chapter.title or ('Chapter ' ~ chapter.number if chapter.number else chapter.id) }}
                 </span>
-                {% if chapter.updated %}
-                <span class="chapter-date">{{ chapter.updated }}</span>
-                {% endif %}
-                {% if chapter.pageCount %}
-                <span class="chapter-date">{{ chapter.pageCount }} pages</span>
-                {% endif %}
+                <div class="chapter-meta-right">
+                    {% if chapter.updated %}
+                    <span class="chapter-date">{{ chapter.updated }}</span>
+                    {% endif %}
+                    {% if chapter.pageCount %}
+                    <span class="chapter-date">{{ chapter.pageCount }} pages</span>
+                    {% endif %}
+                    <span class="badge-read-status">Unread</span>
+                </div>
             </a>
             {% endfor %}
         </div>
+        
+        <!-- Pagination Controls (JS Injected) -->
+        <div class="chapter-pagination" id="chapter-pagination" style="display: none;">
+            <!-- populated by JS -->
+        </div>
     </div>
+    
+    <!-- Render Chapters Array as JSON for JS consumption -->
+    <script id="manga-chapters-data" type="application/json">
+    [
+      {% for chapter in manga.chapters %}
+      {
+        "id": {{ chapter.id|tojson }},
+        "title": {{ (chapter.title or ('Chapter ' ~ chapter.number if chapter.number else chapter.id))|tojson }},
+        "number": {{ (chapter.number or 0)|tojson }},
+        "updated": {{ (chapter.updated or "")|tojson }},
+        "pageCount": {{ (chapter.pageCount or 0)|tojson }},
+        "readUrl": {{ ("/manga/" ~ source ~ "/" ~ (manga.slug or manga.id) ~ "/read/" ~ chapter.id)|tojson }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+    </script>
     {% else %}
     <div class="manga-empty" style="margin-top: var(--space-xl);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -234,7 +331,6 @@
         <p>Chapters may not be available for this manga yet.</p>
     </div>
     {% endif %}
-
 </div>
 {% endblock %}
 

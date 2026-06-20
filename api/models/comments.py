@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from pymongo import ASCENDING, DESCENDING
 
-from ..core.db_connector import comments_collection, episode_reactions_collection
+from ..core.db_connector import comments_collection, episode_reactions_collection, users_collection
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,6 +38,17 @@ def _serialize_comment(doc):
     """Convert a MongoDB comment document into a JSON-serialisable dict."""
     if not doc:
         return None
+        
+    author_role = "user"
+    author_id = doc.get("author_id")
+    if author_id:
+        try:
+            user = users_collection.find_one({"_id": int(author_id)}, {"role": 1})
+            if user:
+                author_role = user.get("role", "user")
+        except Exception:
+            pass
+
     return {
         "_id": str(doc["_id"]),
         "anime_id": doc.get("anime_id", ""),
@@ -45,6 +56,7 @@ def _serialize_comment(doc):
         "parent_id": str(doc["parent_id"]) if doc.get("parent_id") else None,
         "author": doc.get("author", "Anonymous"),
         "author_id": str(doc["author_id"]) if doc.get("author_id") is not None else None,
+        "author_role": author_role,
         "avatar": doc.get("avatar"),
         "body": doc.get("body", ""),
         "gif_url": doc.get("gif_url"),
@@ -63,36 +75,64 @@ def _serialize_comment(doc):
 # Comments
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_comments(anime_id: str, episode_number: int) -> list:
+def get_comments(anime_id: str, episode_number: int, page: int = 1, limit: int = 15) -> dict:
     """
-    Return all top-level comments for an episode, each with nested replies.
+    Return paginated top-level comments for an episode, each with nested replies.
     Replies are sorted oldest-first; top-level comments are sorted newest-first.
     """
-    raw = list(
-        comments_collection.find(
-            {"anime_id": anime_id, "episode_number": episode_number, "deleted": False},
-            sort=[("created_at", ASCENDING)],
-        )
+    _ensure_indexes()
+    
+    # 1. Fetch top-level comments
+    skip = max(0, (page - 1) * limit)
+    query = {
+        "anime_id": anime_id,
+        "episode_number": episode_number,
+        "parent_id": None,
+        "deleted": False
+    }
+    
+    total = comments_collection.count_documents(query)
+    top_level_docs = list(
+        comments_collection.find(query)
+        .sort("created_at", DESCENDING)
+        .skip(skip)
+        .limit(limit)
     )
-
-    top_level = []
-    reply_map: dict[str, list] = {}
-
-    for doc in raw:
-        serialized = _serialize_comment(doc)
+    
+    top_level = [_serialize_comment(d) for d in top_level_docs]
+    
+    # 2. Fetch replies for these top-level comments
+    top_ids = []
+    for c in top_level:
+        try:
+            top_ids.append(ObjectId(c["_id"]))
+        except Exception:
+            pass
+            
+    replies = []
+    if top_ids:
+        replies = list(
+            comments_collection.find(
+                {"parent_id": {"$in": top_ids}, "deleted": False}
+            ).sort("created_at", ASCENDING)
+        )
+        
+    reply_map = {}
+    for r_doc in replies:
+        serialized = _serialize_comment(r_doc)
         pid = serialized["parent_id"]
-        if pid is None:
-            top_level.append(serialized)
-        else:
-            reply_map.setdefault(pid, []).append(serialized)
-
-    # Attach replies
+        reply_map.setdefault(pid, []).append(serialized)
+        
     for comment in top_level:
         comment["replies"] = reply_map.get(comment["_id"], [])
-
-    # Sort top-level newest first
-    top_level.sort(key=lambda c: c["created_at"] or "", reverse=True)
-    return top_level
+        
+    return {
+        "comments": top_level,
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + limit - 1) // limit),
+        "has_more": page * limit < total
+    }
 
 
 def create_comment(
@@ -127,6 +167,22 @@ def create_comment(
 
     result = comments_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
+
+    # Log the commenting action in the audit logs
+    try:
+        from api.models.admin import log_action
+        action_name = "post_reply" if parent_id else "post_comment"
+        details_str = f"Posted reply on '{anime_id}', Ep {episode_number}" if parent_id else f"Posted comment on '{anime_id}', Ep {episode_number}"
+        log_action(
+            actor_id=str(author_id) if author_id else "anonymous",
+            actor_username=author,
+            action=action_name,
+            target_id=str(result.inserted_id),
+            details=details_str
+        )
+    except Exception:
+        pass
+
     return _serialize_comment(doc)
 
 

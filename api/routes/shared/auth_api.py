@@ -15,7 +15,8 @@ from ...utils.mailer import send_reset_code_email
 from ...models.user import (
     create_user, get_user, user_exists, email_exists, get_user_by_id,
     get_user_by_email, change_password,
-    store_reset_code, verify_reset_code, clear_reset_code, reset_password
+    store_reset_code, verify_reset_code, clear_reset_code, reset_password,
+    delete_user
 )
 from ...core.caching import clear_user_cache
 from ...core.config import Config
@@ -30,8 +31,11 @@ logger = logging.getLogger(__name__)
 def signup():
     """User registration endpoint"""
     data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'Invalid JSON request payload.'}), 400
+
     username = data.get('username', '').strip()
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     password = data.get('password', '')
     turnstile_token = data.get('cf_turnstile_response')
     
@@ -42,11 +46,17 @@ def signup():
     if not username or not email or not password:
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
     
-    if len(username) < 3:
-        return jsonify({'success': False, 'message': 'Username must be at least 3 characters long.'}), 400
+    if len(username) < 3 or len(username) > 20:
+        return jsonify({'success': False, 'message': 'Username must be between 3 and 20 characters long.'}), 400
+    
+    if ' ' in username:
+        return jsonify({'success': False, 'message': 'Username cannot contain spaces.'}), 400
         
-    if len(password) < 6:
-        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
+    if len(password) < 6 or len(password) > 30:
+        return jsonify({'success': False, 'message': 'Password must be between 6 and 30 characters long.'}), 400
+    
+    if len(email) > 50:
+        return jsonify({'success': False, 'message': 'Email address is too long.'}), 400
     
     if user_exists(username):
         return jsonify({'success': False, 'message': 'Username already exists. Please choose a different one.'}), 409
@@ -54,7 +64,7 @@ def signup():
     if email_exists(email):
         return jsonify({'success': False, 'message': 'Email already registered. Please use a different email or try logging in.'}), 409
     
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     if not re.match(email_pattern, email):
         return jsonify({'success': False, 'message': 'Please enter a valid email address.'}), 400
     
@@ -66,6 +76,7 @@ def signup():
         session['_id'] = user_id
         session['avatar'] = None  # New users have no avatar yet
         session['password_version'] = 0
+        session['role'] = 'user'
         session.permanent = True
         
         current_app.logger.info(f"User {username} signed up successfully with ID {user_id}")
@@ -84,11 +95,34 @@ def signup():
         return jsonify({'success': False, 'message': 'Failed to create account. Please try again.'}), 500
 
 
+@auth_api_bp.route('/check-username', methods=['GET'])
+@limiter.limit("60 per minute")
+def check_username():
+    """Check if a username is available in real-time"""
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({'available': False, 'message': 'Username is required.'}), 400
+        
+    if len(username) < 3 or len(username) > 20:
+        return jsonify({'available': False, 'message': 'Username must be between 3 and 20 characters.'}), 200
+        
+    if ' ' in username:
+        return jsonify({'available': False, 'message': 'Username cannot contain spaces.'}), 200
+        
+    if user_exists(username):
+        return jsonify({'available': False, 'message': 'Username is already taken.'}), 200
+        
+    return jsonify({'available': True, 'message': 'Username is available!'}), 200
+
+
 @auth_api_bp.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def login():
     """User login endpoint"""
     data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'Invalid JSON request payload.'}), 400
+
     username = data.get('username', '').strip()
     password = data.get('password', '')
     turnstile_token = data.get('cf_turnstile_response')
@@ -103,8 +137,8 @@ def login():
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password are required.'}), 400
     
-    if len(password) < 6:
-        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
+    if len(password) < 6 or len(password) > 30 or len(username) > 20:
+        return jsonify({'success': False, 'message': 'Invalid username or password.'}), 401
     
     try:
         user = get_user(username, password)
@@ -114,6 +148,7 @@ def login():
             session['_id'] = user['_id']
             session['password_version'] = user.get('password_version', 0)
             session['avatar'] = user.get('avatar')  # Sync avatar to session
+            session['role'] = user.get('role', 'user')
             session['anilist_authenticated'] = bool(user.get('anilist_id'))
             if user.get('anilist_id'):
                 session['anilist_id'] = user.get('anilist_id')
@@ -209,8 +244,8 @@ def change_password_route():
     if not current_password or not new_password:
         return jsonify({'success': False, 'message': 'Current and new passwords are required.'}), 400
     
-    if len(new_password) < 6:
-        return jsonify({'success': False, 'message': 'New password must be at least 6 characters long.'}), 400
+    if len(new_password) < 6 or len(new_password) > 30:
+        return jsonify({'success': False, 'message': 'New password must be between 6 and 30 characters long.'}), 400
     
     try:
         user_id = session.get('_id')
@@ -244,14 +279,21 @@ def forgot_password():
 
     if not email:
         return jsonify({'success': False, 'message': 'Email is required.'}), 400
+    
+    if len(email) > 50:
+        return jsonify({'success': False, 'message': 'Email address is too long.'}), 400
+    
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        return jsonify({'success': False, 'message': 'Please enter a valid email address.'}), 400
 
     # Check if user exists, return explicit error if not found (per user request)
     user = get_user_by_email(email)
     if not user:
         return jsonify({'success': False, 'message': 'No account found with that email address.'}), 404
 
-    # Generate 6-digit numeric code
-    code = f"{random.randint(0, 999999):06d}"
+    # Generate cryptographically secure 6-digit code
+    code = f"{secrets.SystemRandom().randint(0, 999999):06d}"
     hashed_code = hashpw(code.encode('utf-8'), gensalt())
     expires_at = datetime.utcnow() + timedelta(minutes=5)
 
@@ -280,6 +322,9 @@ def verify_reset_code_endpoint():
     if not email or not code:
         return jsonify({'success': False, 'message': 'Email and code are required.'}), 400
 
+    if len(email) > 50:
+        return jsonify({'success': False, 'message': 'Email address is too long.'}), 400
+
     if not re.fullmatch(r'\d{6}', code):
         return jsonify({'success': False, 'message': 'Code must be exactly 6 digits.'}), 400
 
@@ -307,8 +352,11 @@ def reset_password_endpoint():
     if not email or not code or not new_password:
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
 
-    if len(new_password) < 6:
-        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
+    if len(email) > 50:
+        return jsonify({'success': False, 'message': 'Email address is too long.'}), 400
+
+    if len(new_password) < 6 or len(new_password) > 30:
+        return jsonify({'success': False, 'message': 'Password must be between 6 and 30 characters long.'}), 400
 
     # Verify the session-bound token
     if not token or token != session.get('reset_token') or email != session.get('reset_email'):
@@ -326,3 +374,36 @@ def reset_password_endpoint():
         return jsonify({'success': True, 'message': 'Password reset successful! You can now sign in.'}), 200
 
     return jsonify({'success': False, 'message': 'Failed to reset password. Please try again.'}), 500
+
+
+@auth_api_bp.route('/delete-account', methods=['POST'])
+def delete_account():
+    """Delete current user account"""
+    if 'username' not in session or '_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in.'}), 401
+        
+    try:
+        user_id = session.get('_id')
+        
+        # Perform user deletion
+        success = delete_user(user_id)
+        if success:
+            # Clear user cache
+            clear_user_cache(int(user_id))
+            
+            # Clear session
+            username = session.get('username')
+            session.clear()
+            
+            # Create response and explicitly delete the session cookie
+            response = make_response(jsonify({'success': True, 'message': 'Account deleted successfully.'}))
+            response.delete_cookie('session')
+            
+            current_app.logger.info(f"User {username} deleted their account successfully (ID: {user_id})")
+            return response, 200
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete account. User not found.'}), 404
+            
+    except Exception as e:
+        current_app.logger.error(f"Error deleting account: {e}")
+        return jsonify({'success': False, 'message': 'An error occurred while deleting your account.'}), 500

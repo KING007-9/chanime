@@ -510,7 +510,7 @@ class SearchManager {
 
         const isMobile = searchType === 'mobile';
         const suggestionHTML = suggestions
-            .slice(0, 8)
+            .slice(0, 5)
             .map(s => `
                 <div class="suggestion-item group" data-id="${s.id}" data-name="${s.name}">
                     <img src="${s.poster || '/static/images/misc/placeholder.jpg'}" 

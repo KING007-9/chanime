@@ -23,6 +23,7 @@ _WORKER_PROVIDERS = {
     "ax-zaza",
     "ax-yuki",
     "ax-zen",
+    "ax-beep",
     "uwu",
     "mochi",
     "wave",
@@ -245,10 +246,25 @@ class MiruroSourcesService:
                 "message": "Failed to fetch sources from Miruro API",
             }
 
-        raw_streams = resp.get("streams", []) or resp.get("sources", []) or []
+        raw_streams = (
+            resp.get("streams", [])
+            or resp.get("sources", [])
+            or resp.get("ssub", {}).get("streams", [])
+            or resp.get("ddub", {}).get("streams", [])
+            or resp.get("sub", {}).get("streams", [])
+            or resp.get("dub", {}).get("streams", [])
+            or []
+        )
 
         # Subtitles: always use cdn-eu, never kiwi worker
-        subtitles = resp.get("subtitles", []) or []
+        subtitles = (
+            resp.get("subtitles", [])
+            or resp.get("ssub", {}).get("subtitles", [])
+            or resp.get("ddub", {}).get("subtitles", [])
+            or resp.get("sub", {}).get("subtitles", [])
+            or resp.get("dub", {}).get("subtitles", [])
+            or []
+        )
         tracks = []
         for sub in subtitles:
             if isinstance(sub, dict):
@@ -270,8 +286,18 @@ class MiruroSourcesService:
                         }
                     )
 
-        intro = resp.get("intro") or {}
-        outro = resp.get("outro") or {}
+        intro = (
+            resp.get("intro")
+            or resp.get("ssub", {}).get("intro")
+            or resp.get("ddub", {}).get("intro")
+            or {}
+        )
+        outro = (
+            resp.get("outro")
+            or resp.get("ssub", {}).get("outro")
+            or resp.get("ddub", {}).get("outro")
+            or {}
+        )
         download = resp.get("download") or ""
 
         # Separate HLS and embed streams
@@ -354,7 +380,7 @@ class MiruroSourcesService:
 
         hls_sources.sort(key=quality_sort_key)
 
-        print(
+        logger.debug(
             f"[MiruroSources] hls_sources: {len(hls_sources)}, embed_sources: {len(embed_sources)}"
         )
 
@@ -384,18 +410,18 @@ class MiruroSourcesService:
 
         if source_type == "embed" and embed_sources:
             result["video_link"] = embed_sources[0].get("url", "")
-            print(
+            logger.debug(
                 f"[MiruroSources] video_link (embed): {result['video_link'][:100] if result['video_link'] else 'EMPTY'}"
             )
         elif source_type == "hls" and default_hls_source:
             result["video_link"] = (
                 default_hls_source.get("file") or default_hls_source.get("url") or ""
             )
-            print(
+            logger.debug(
                 f"[MiruroSources] video_link (hls): {result['video_link'][:100] if result['video_link'] else 'EMPTY'}"
             )
 
-        logger.info(
+        logger.debug(
             f"[MiruroSources] episode_id={episode_id}, provider={provider}, "
             f"category={category}, hls={len(hls_sources)}, embeds={len(embed_sources)}, "
             f"source_type={source_type}, qualities={result['available_qualities']}"

@@ -8,6 +8,7 @@ import logging
 import time
 import asyncio
 import inspect
+import aiohttp
 from threading import Lock
 from typing import Dict, Any
 
@@ -58,19 +59,14 @@ def verify_turnstile(token, secret, remoteip=None):
         if not success:
             error_codes = result.get("error-codes", [])
             logger.warning(f"Turnstile verification failed. Token: {token[:20]}..., Error codes: {error_codes}")
-            
-            # For Vercel, sometimes we get false negatives due to IP/timing issues
-            # If it's just a timeout or connection issue, we might want to be more lenient
-            if 'timeout-or-duplicate' in error_codes:
-                logger.warning("Turnstile timeout-or-duplicate error - treating as valid for Vercel deployment")
-                return True
+            return False
                 
         return success
         
     except requests.exceptions.Timeout:
         logger.error("Turnstile verification timeout")
-        # For Vercel, timeout might be due to serverless cold start - be more lenient
-        return True
+        # Fail secure rather than open
+        return False
     except requests.exceptions.RequestException as e:
         logger.error(f"Turnstile verification request error: {e}")
         return False
@@ -138,6 +134,8 @@ async def fetch_anilist_next_episode(anilist_id: int = None, mal_id: int = None,
     query_id = '''
     query ($id: Int, $idMal: Int) {
       Media(id: $id, idMal: $idMal, type: ANIME) {
+        id
+        status
         nextAiringEpisode {
           airingAt
           timeUntilAiring
@@ -159,41 +157,49 @@ async def fetch_anilist_next_episode(anilist_id: int = None, mal_id: int = None,
     }
     '''
     
-    queries_to_try = []
+    # Try exact ID queries first
+    exact_queries = []
     if anilist_id and int(anilist_id) > 0:
-        queries_to_try.append((query_id, {"id": int(anilist_id)}))
+        exact_queries.append((query_id, {"id": int(anilist_id)}))
     if mal_id and int(mal_id) > 0:
-        queries_to_try.append((query_id, {"idMal": int(mal_id)}))
-    if search_title:
-        queries_to_try.append((query_search, {"search": search_title}))
-        
-    if not queries_to_try:
-        return {}
-    
+        exact_queries.append((query_id, {"idMal": int(mal_id)}))
+
     try:
-        import aiohttp
         async with aiohttp.ClientSession() as session:
-            for query, variables in queries_to_try:
+            # 1. Run exact queries first
+            for query, variables in exact_queries:
                 async with session.post('https://graphql.anilist.co', json={'query': query, 'variables': variables}) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        media_data = data.get('data', {})
-                        # Handle both single Media and Page->media responses
-                        if 'Page' in media_data:
-                            media_list = media_data.get('Page', {}).get('media', [])
-                            media = media_list[0] if media_list else {}
-                        else:
-                            media = media_data.get('Media') or {}
-                            
-                        next_ep = media.get('nextAiringEpisode')
-                        if next_ep and next_ep.get('airingAt'):
-                            return {
-                                "airingTimestamp": next_ep.get('airingAt'),
-                                "timeUntilAiring": next_ep.get('timeUntilAiring'),
-                                "episode": next_ep.get('episode')
-                            }
-                # If we get here, either status != 200 or no valid airingAt was found for this query.
-                # Continue loop to try the next fallback (e.g. mal_id or search_title).
+                        media = data.get('data', {}).get('Media')
+                        if media:
+                            # If media is found, this is the exact anime season!
+                            # If nextAiringEpisode is present, return it.
+                            next_ep = media.get('nextAiringEpisode')
+                            if next_ep and next_ep.get('airingAt'):
+                                return {
+                                    "airingTimestamp": next_ep.get('airingAt'),
+                                    "timeUntilAiring": next_ep.get('timeUntilAiring'),
+                                    "episode": next_ep.get('episode')
+                                }
+                            # Otherwise, the exact match exists but is NOT releasing (FINISHED, NOT_YET_RELEASED, etc.)
+                            # Stop immediately — do not fall back to loose title searching which will match other seasons!
+                            return {}
+
+            # 2. If no exact IDs are available, try search fallback (filters by RELEASING automatically)
+            if not exact_queries and search_title:
+                async with session.post('https://graphql.anilist.co', json={'query': query_search, 'variables': {"search": search_title}}) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        media = data.get('data', {}).get('Media')
+                        if media:
+                            next_ep = media.get('nextAiringEpisode')
+                            if next_ep and next_ep.get('airingAt'):
+                                return {
+                                    "airingTimestamp": next_ep.get('airingAt'),
+                                    "timeUntilAiring": next_ep.get('timeUntilAiring'),
+                                    "episode": next_ep.get('episode')
+                                }
         return {}
     except Exception as e:
         logger.error(f"Error fetching next episode from AniList: {e}")

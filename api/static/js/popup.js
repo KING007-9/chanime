@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dontShowBtn = document.getElementById('welcome-btn-dont-show');
     
     // Change this version string when you want to show a NEW update to users!
-    const currentUpdateVersion = 'v4'; 
+    const currentUpdateVersion = 'v5'; 
     
     // Check user preferences
     const neverShowAgain = localStorage.getItem('chanime_popup_never_show') === 'true';

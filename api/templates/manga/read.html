@@ -15,16 +15,20 @@
 
     /* Navbar auto-hide on scroll */
     .navbar {
-        position: sticky;
+        position: fixed;
         top: 0;
         transition: transform 0.3s ease, opacity 0.3s ease;
         z-index: 9999;
     }
     .navbar.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
 
-    /* Progress bar */
+    /* Keep sidebar (hamburger menu) above the reader bars */
+    .sidebar-backdrop { z-index: 10000 !important; }
+    .sidebar { z-index: 10001 !important; }
+
+    /* Progress bar (nested inside .reader-bar at bottom) */
     .reader-progress {
-        position: fixed; top: 56px; left: 0; height: 3px;
+        position: absolute; bottom: 0; left: 0; height: 3px;
         background: linear-gradient(90deg, var(--primary), #ec4899);
         z-index: 10000; transition: width 0.1s linear;
         border-radius: 0 2px 2px 0;
@@ -32,7 +36,7 @@
 
     /* Floating header — auto-hides on scroll */
     .reader-bar {
-        position: fixed; top: 56px; left: 0; right: 0;
+        position: fixed; top: 64px; left: 0; right: 0;
         z-index: 9998;
         background: rgba(10, 10, 14, 0.92);
         backdrop-filter: blur(12px);
@@ -43,7 +47,7 @@
         gap: 12px;
         transition: transform 0.3s ease, opacity 0.3s ease;
     }
-    .reader-bar.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+    .reader-bar.hidden { transform: translateY(calc(-100% - 64px)); opacity: 0; pointer-events: none; }
 
     .reader-bar-title {
         flex: 1; min-width: 0;
@@ -133,11 +137,11 @@
 {% endblock %}
 
 {% block content %}
-<!-- Progress bar -->
-<div class="reader-progress" id="reader-progress" style="width:0%"></div>
-
 <!-- Floating header bar -->
 <div class="reader-bar" id="reader-bar">
+    <!-- Progress bar nested inside reader bar -->
+    <div class="reader-progress" id="reader-progress" style="width:0%"></div>
+
     <div class="reader-bar-title">
         {% if manga %}<a href="/manga/{{ source }}/{{ manga_id }}">{{ manga.title }}</a> › {% endif %}
         {{ chapter_title }}
@@ -246,9 +250,26 @@
     const imagesContainer = document.getElementById('reader-images');
     const allPages = imagesContainer ? imagesContainer.querySelectorAll('img[data-page]') : [];
     const totalPages = allPages.length;
-    let lastScrollY = 0;
+    let lastScrollY = Math.max(0, window.pageYOffset || document.documentElement.scrollTop);
+    let accumScroll = 0;
     let barsVisible = true;
     let scrollTicking = false;
+
+    // Show bars function
+    function showBars() {
+        if (barsVisible) return;
+        bar.classList.remove('hidden');
+        if (navbar) navbar.classList.remove('hidden');
+        barsVisible = true;
+    }
+
+    // Hide bars function
+    function hideBars() {
+        if (!barsVisible) return;
+        bar.classList.add('hidden');
+        if (navbar) navbar.classList.add('hidden');
+        barsVisible = false;
+    }
 
     // Lazy-load images with IntersectionObserver
     if (allPages.length) {
@@ -260,20 +281,13 @@
                     io.unobserve(e.target);
                 }
             });
-        }, { rootMargin: '600px' });
+        }, { rootMargin: '800px' });
         allPages.forEach(img => io.observe(img));
     }
 
     // Page tracking observer
     if (totalPages && currentPageEl) {
         const pageIO = new IntersectionObserver((entries) => {
-            let maxPage = 1;
-            entries.forEach(e => {
-                if (e.isIntersecting) {
-                    const p = parseInt(e.target.dataset.page);
-                    if (p > maxPage) maxPage = p;
-                }
-            });
             // Find the topmost visible page
             for (let i = 0; i < allPages.length; i++) {
                 const rect = allPages[i].getBoundingClientRect();
@@ -286,9 +300,9 @@
         allPages.forEach(img => pageIO.observe(img));
     }
 
-    // Scroll handler: auto-hide bar + update progress + immersive mode
+    // Scroll handler: auto-hide bar + update progress + page tracking
     function onScroll() {
-        const scrollY = window.scrollY;
+        const scrollY = Math.max(0, window.pageYOffset || document.documentElement.scrollTop);
         const docHeight = document.documentElement.scrollHeight - window.innerHeight;
         const pct = docHeight > 0 ? Math.min((scrollY / docHeight) * 100, 100) : 0;
 
@@ -299,28 +313,37 @@
         if (currentPageEl && allPages.length) {
             for (let i = 0; i < allPages.length; i++) {
                 const rect = allPages[i].getBoundingClientRect();
-                if (rect.bottom > 80) {
+                if (rect.bottom > 100) {
                     currentPageEl.textContent = allPages[i].dataset.page;
                     break;
                 }
             }
         }
 
-        // Auto-hide reader-bar and navbar after scrolling 60px
-        if (scrollY > 60) {
-            if (scrollY > lastScrollY && barsVisible) {
-                bar.classList.add('hidden');
-                if (navbar) navbar.classList.add('hidden');
-                barsVisible = false;
-            } else if (scrollY < lastScrollY - 30 && !barsVisible) {
-                bar.classList.remove('hidden');
-                if (navbar) navbar.classList.remove('hidden');
-                barsVisible = true;
-            }
+        // Scroll direction tracking with accumulated threshold
+        const diff = scrollY - lastScrollY;
+
+        // If near top, always show bars
+        if (scrollY <= 60) {
+            showBars();
+            accumScroll = 0;
         } else {
-            bar.classList.remove('hidden');
-            if (navbar) navbar.classList.remove('hidden');
-            barsVisible = true;
+            // Check if scroll direction has reversed
+            if ((diff > 0 && accumScroll < 0) || (diff < 0 && accumScroll > 0)) {
+                accumScroll = 0;
+            }
+            accumScroll += diff;
+
+            // Scroll down threshold to hide: 50px
+            if (accumScroll > 50 && barsVisible) {
+                hideBars();
+                accumScroll = 0;
+            }
+            // Scroll up threshold to show: 40px
+            else if (accumScroll < -40 && !barsVisible) {
+                showBars();
+                accumScroll = 0;
+            }
         }
 
         lastScrollY = scrollY;
@@ -337,10 +360,17 @@
     // Tap image area to toggle bar and navbar
     if (imagesContainer) {
         imagesContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'A') return;
-            bar.classList.toggle('hidden');
-            if (navbar) navbar.classList.toggle('hidden');
-            barsVisible = !bar.classList.contains('hidden');
+            if (e.target.tagName === 'A' || e.target.closest('a')) return;
+            
+            if (barsVisible) {
+                hideBars();
+            } else {
+                showBars();
+            }
+            
+            // Sync states to prevent immediate scroll re-hide/show triggers
+            accumScroll = 0;
+            lastScrollY = Math.max(0, window.pageYOffset || document.documentElement.scrollTop);
         });
     }
 

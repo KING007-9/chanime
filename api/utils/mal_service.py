@@ -111,7 +111,7 @@ def get_mal_user_info(access_token: str) -> dict | None:
         resp = requests.get(
             f"{MAL_API_BASE}/users/@me",
             headers=_mal_headers(access_token),
-            params={"fields": "anime_statistics"},
+            params={"fields": "anime_statistics,picture"},
             timeout=10,
         )
         if resp.status_code != 200:

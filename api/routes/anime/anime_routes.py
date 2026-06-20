@@ -117,3 +117,43 @@ async def anime_info(anime_id: str):
         user_watched_episodes=user_watched_episodes
     )
 
+
+@anime_routes_bp.route('/studio/<int:studio_id>')
+async def studio_page(studio_id: int):
+    """Studio details page"""
+    page = request.args.get('page', 1, type=int)
+    
+    get_studio_method = getattr(current_app.ha_scraper, "get_studio_details", None)
+    if not get_studio_method:
+        return "Studio fetch function not found", 500
+        
+    result = await get_studio_method(studio_id, page)
+    
+    if not result or not result.get("success"):
+        return f"Studio not found: {result.get('message', 'Unknown error')}", 404
+        
+    return render_template(
+        "anime/studio.html",
+        studio=result.get("studio"),
+        animes=result.get("animes"),
+        page_info=result.get("pageInfo"),
+        current_page=page
+    )
+
+
+@anime_routes_bp.route('/api/anime/<int:anilist_id>/watch-order', methods=['GET'])
+async def anime_watch_order(anilist_id: int):
+    """Fetch the watch order timeline for an anime"""
+    from flask import jsonify
+    from api.utils.watch_order import get_watch_order
+    
+    try:
+        entries = await get_watch_order(anilist_id)
+        if not entries:
+            return jsonify({"success": False, "message": "Watch order not found"}), 404
+        return jsonify({"success": True, "entries": entries}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching watch order for {anilist_id}: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+

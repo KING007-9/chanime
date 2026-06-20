@@ -732,3 +732,360 @@
         font-size: 0.75rem;
     }
 }
+
+/* ── Interactive Chapter Search & Filters Upgrade ─────────────────────── */
+.blurred-fallback {
+    filter: blur(40px) brightness(0.4);
+    transform: scale(1.1);
+}
+
+.manga-banner-container.fallback-banner {
+    height: 180px;
+    background: var(--surface-2);
+}
+
+.manga-detail-description-container {
+    position: relative;
+    margin-bottom: var(--space-md);
+}
+
+.manga-detail-description.expandable {
+    max-height: 80px;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.manga-detail-description.expandable.expanded {
+    max-height: 1000px;
+}
+
+.manga-detail-description-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 35px;
+    background: linear-gradient(to top, var(--surface-2) 0%, transparent 100%);
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.manga-detail-description.expandable.expanded .manga-detail-description-fade {
+    opacity: 0;
+}
+
+.manga-description-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.manga-description-toggle-btn:hover {
+    color: var(--primary-hover);
+}
+
+.manga-description-toggle-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.manga-description-toggle-btn.expanded svg {
+    transform: rotate(180deg);
+}
+
+.btn-fav-active {
+    color: #ff3e3e !important;
+    border-color: rgba(255, 62, 62, 0.3) !important;
+    background: rgba(255, 62, 62, 0.1) !important;
+}
+
+.btn-fav-active svg {
+    fill: #ff3e3e;
+    transform: scale(1.08);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-fav-active:hover svg {
+    transform: scale(1.18);
+}
+
+.btn-action-glow {
+    transition: all 0.2s ease;
+}
+
+.btn-action-glow:hover {
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.manga-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    margin-top: var(--space-md);
+}
+
+.manga-meta-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.manga-meta-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.manga-meta-card-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.manga-meta-card-value {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chapter-controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 12px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.chapter-search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+}
+
+.chapter-search-wrapper input {
+    width: 100%;
+    padding: 10px 16px 10px 38px;
+    background: var(--surface-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.chapter-search-wrapper input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(255, 62, 62, 0.1);
+}
+
+.chapter-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: color 0.2s;
+}
+
+.chapter-search-wrapper input:focus + .chapter-search-icon {
+    color: var(--primary);
+}
+
+.chapter-filter-pills {
+    display: flex;
+    gap: 6px;
+}
+
+.chapter-filter-pill {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-3);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chapter-filter-pill:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.chapter-filter-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(255, 62, 62, 0.25);
+}
+
+.chapter-sort-btn {
+    padding: 8px 14px;
+    background: var(--surface-3);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.chapter-sort-btn:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.chapter-sort-btn svg {
+    transition: transform 0.25s ease;
+}
+
+.chapter-sort-btn.desc svg {
+    transform: rotate(180deg);
+}
+
+.chapter-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: var(--space-lg);
+    padding: 10px 0;
+}
+
+.chapter-pagination-btn {
+    padding: 6px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chapter-pagination-btn:hover:not(:disabled) {
+    background: var(--surface-3);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.chapter-pagination-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.chapter-pagination-info {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.manga-chapter-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.manga-chapter-item.read {
+    opacity: 0.6;
+}
+
+.manga-chapter-item.read .chapter-title {
+    color: var(--text-secondary);
+}
+
+.manga-chapter-item.last-read {
+    border-color: rgba(168, 85, 247, 0.35) !important;
+    background: rgba(168, 85, 247, 0.05) !important;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.06);
+}
+
+.manga-chapter-item.last-read:hover {
+    background: rgba(168, 85, 247, 0.08) !important;
+    border-color: rgba(168, 85, 247, 0.5) !important;
+}
+
+.badge-read-status {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.manga-chapter-item.read .badge-read-status {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: rgba(16, 185, 129, 0.2) !important;
+    color: #10b981 !important;
+}
+
+.manga-chapter-item.last-read .badge-read-status {
+    background: rgba(168, 85, 247, 0.15) !important;
+    border-color: rgba(168, 85, 247, 0.3) !important;
+    color: #a855f7 !important;
+}
+
+.chapter-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .chapter-controls-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .chapter-filter-pills {
+        justify-content: space-between;
+    }
+    
+    .chapter-filter-pill {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .manga-meta-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+

@@ -15,6 +15,11 @@ class CommentsManager {
         this.avatar = config.avatar || '';
         this.userId = config.userId || '';
 
+        // Pagination state
+        this.page = 1;
+        this.hasMore = false;
+        this.isLoadingMore = false;
+
         // GIF picker context: which form triggered it
         this._gifContext = null;    // 'main' | 'reply:<commentId>'
         this._gifUrl = { main: null };  // key -> selected gif url
@@ -123,26 +128,113 @@ class CommentsManager {
     async _loadComments() {
         const list = this.DOM.commentList;
         if (!list) return;
+        this.page = 1;
+        this.hasMore = false;
+        this.isLoadingMore = false;
         list.innerHTML = `<div class="comment-list-loading"><div class="comment-spinner"></div><span>Loading comments…</span></div>`;
         try {
-            const r = await fetch(`/api/comments?anime_id=${encodeURIComponent(this.animeId)}&ep=${this.episodeNum}`);
+            const r = await fetch(`/api/comments?anime_id=${encodeURIComponent(this.animeId)}&ep=${this.episodeNum}&page=1&limit=15`);
             if (!r.ok) throw new Error('fetch failed');
             const d = await r.json();
-            this._renderComments(d.comments || []);
+            
+            // clear loading spinner
+            list.innerHTML = '';
+            
+            if (this.DOM.commentTotalEl) this.DOM.commentTotalEl.textContent = d.total ?? 0;
+            
+            const comments = d.comments || [];
+            if (!comments.length) {
+                list.innerHTML = `<div class="comment-list-empty">No comments yet. Be the first to share your thoughts!</div>`;
+                return;
+            }
+            
+            // build comments container
+            const container = document.createElement('div');
+            container.className = 'comments-container';
+            list.appendChild(container);
+            
+            comments.forEach(c => container.appendChild(this._buildCommentEl(c, false)));
+            
+            this.hasMore = d.has_more;
+            if (this.hasMore) {
+                this._renderLoadMoreButton();
+            }
         } catch (_) {
             list.innerHTML = `<div class="comment-list-empty">Failed to load comments. Please try again later.</div>`;
         }
     }
 
-    _renderComments(comments) {
+    _renderLoadMoreButton() {
         const list = this.DOM.commentList;
-        if (this.DOM.commentTotalEl) this.DOM.commentTotalEl.textContent = comments.length;
-        if (!comments.length) {
-            list.innerHTML = `<div class="comment-list-empty">No comments yet. Be the first to share your thoughts!</div>`;
-            return;
+        let btn = document.getElementById('load-more-comments-btn');
+        if (btn) btn.remove();
+        
+        btn = document.createElement('button');
+        btn.id = 'load-more-comments-btn';
+        btn.className = 'load-more-btn';
+        btn.innerHTML = `
+            <span>Load More Comments</span>
+            <svg class="btn-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="display:none; animation: commentSpin 0.7s linear infinite; margin-left: 8px;">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10"></path>
+            </svg>
+        `;
+        btn.addEventListener('click', () => this._loadMoreComments());
+        list.appendChild(btn);
+    }
+
+    async _loadMoreComments() {
+        if (this.isLoadingMore || !this.hasMore) return;
+        this.isLoadingMore = true;
+        
+        const btn = document.getElementById('load-more-comments-btn');
+        if (btn) {
+            btn.classList.add('loading');
+            btn.querySelector('span').textContent = 'Loading…';
+            btn.querySelector('.btn-spinner').style.display = 'inline-block';
         }
-        list.innerHTML = '';
-        comments.forEach(c => list.appendChild(this._buildCommentEl(c, false)));
+        
+        try {
+            const nextPage = this.page + 1;
+            const r = await fetch(`/api/comments?anime_id=${encodeURIComponent(this.animeId)}&ep=${this.episodeNum}&page=${nextPage}&limit=15`);
+            if (!r.ok) throw new Error('fetch failed');
+            const d = await r.json();
+            
+            const comments = d.comments || [];
+            const container = this.DOM.commentList.querySelector('.comments-container');
+            if (container && comments.length) {
+                comments.forEach(c => {
+                    const el = this._buildCommentEl(c, false);
+                    el.style.opacity = '0';
+                    container.appendChild(el);
+                    // Trigger reflow & slide-in animation
+                    void el.offsetWidth;
+                    el.style.opacity = '1';
+                });
+            }
+            
+            this.page = nextPage;
+            this.hasMore = d.has_more;
+            
+            if (btn) {
+                btn.classList.remove('loading');
+                btn.querySelector('span').textContent = 'Load More Comments';
+                btn.querySelector('.btn-spinner').style.display = 'none';
+            }
+            
+            if (!this.hasMore) {
+                if (btn) btn.remove();
+            }
+        } catch (_) {
+            this._showToast('Failed to load more comments.', 'error');
+            if (btn) {
+                btn.classList.remove('loading');
+                btn.querySelector('span').textContent = 'Load More Comments';
+                btn.querySelector('.btn-spinner').style.display = 'none';
+            }
+        } finally {
+            this.isLoadingMore = false;
+        }
     }
 
     _buildCommentEl(comment, isReply) {
@@ -171,6 +263,16 @@ class CommentsManager {
         const replyBtnHTML = isReply ? '' : `
             <button class="comment-reply-toggle" data-comment-id="${comment._id}">Reply</button>`;
 
+        const showReport = this.isLoggedIn && !comment.deleted && (
+            (comment.author_id && String(comment.author_id) !== String(this.userId)) ||
+            (!comment.author_id && comment.author !== this.username)
+        );
+        const reportBtnHTML = showReport ? `
+            <button class="comment-report-btn" data-comment-id="${comment._id}" title="Report this comment">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                <span>Report</span>
+            </button>` : '';
+
         const isOwner = !comment.deleted && this.isLoggedIn && (
             (comment.author_id && String(comment.author_id) === String(this.userId)) ||
             (!comment.author_id && comment.author === this.username && comment.author !== 'Anonymous')
@@ -194,10 +296,18 @@ class CommentsManager {
             `;
         }
 
+        let badgeHTML = '';
+        if (comment.author_role === 'admin') {
+            badgeHTML = `<span class="staff-badge admin-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:3px; vertical-align: middle;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Admin</span>`;
+        } else if (comment.author_role === 'mod') {
+            badgeHTML = `<span class="staff-badge mod-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:3px; vertical-align: middle;"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>Mod</span>`;
+        }
+
         wrapper.innerHTML = `
             <div class="comment-header">
                 ${avatarHTML}
                 <span class="comment-author">${this._esc(comment.author)}</span>
+                ${badgeHTML}
                 <span class="comment-time" title="${this._absoluteTime(comment.created_at)}">
                     ${this._relativeTime(comment.created_at)}
                     ${comment.edited_at ? `<span title="Edited at ${this._absoluteTime(comment.edited_at)}"> (edited)</span>` : ''}
@@ -216,6 +326,7 @@ class CommentsManager {
                     <span class="comment-dislike-count">${comment.dislike_count ?? 0}</span>
                 </button>
                 ${replyBtnHTML}
+                ${reportBtnHTML}
             </div>
             ${!isReply ? `<div class="reply-form-container" id="reply-form-${comment._id}" style="display:none;"></div>` : ''}
             ${repliesWrapperHTML}
@@ -230,6 +341,12 @@ class CommentsManager {
         const replyToggle = wrapper.querySelector('.comment-reply-toggle');
         if (replyToggle) {
             replyToggle.addEventListener('click', () => this._toggleReplyForm(comment._id, wrapper));
+        }
+
+        // Bind Report click
+        const reportBtn = wrapper.querySelector('.comment-report-btn');
+        if (reportBtn) {
+            reportBtn.addEventListener('click', () => this._openReportModal(comment._id));
         }
 
         // Bind Edit/Delete
@@ -297,6 +414,26 @@ class CommentsManager {
     _bindMainCommentForm() {
         if (!this.DOM.mainSubmitBtn) return;
         this.DOM.mainSubmitBtn.addEventListener('click', () => this._submitComment());
+        
+        // Dynamically inject main character counter
+        const actionsArea = this.DOM.commentForm?.querySelector('.comment-input-actions');
+        if (actionsArea && !actionsArea.querySelector('.char-counter')) {
+            const counter = document.createElement('div');
+            counter.className = 'char-counter';
+            counter.textContent = '0 / 2000';
+            actionsArea.insertBefore(counter, actionsArea.firstChild);
+            
+            this.DOM.mainTextarea?.addEventListener('input', () => {
+                const len = this.DOM.mainTextarea.value.length;
+                counter.textContent = `${len} / 2000`;
+                counter.classList.toggle('warning', len > 1800);
+                counter.classList.toggle('danger', len > 2000);
+                if (this.DOM.mainSubmitBtn) {
+                    this.DOM.mainSubmitBtn.disabled = len > 2000;
+                }
+            });
+        }
+
         this.DOM.mainTextarea?.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -319,6 +456,7 @@ class CommentsManager {
         const body = this.DOM.mainTextarea?.value.trim() || '';
         const gifUrl = this._gifUrl.main || null;
         if (!body && !gifUrl) return;
+        if (body.length > 2000) return; // Prevent posting too long comments
 
         this.DOM.mainSubmitBtn.disabled = true;
         this.DOM.mainSubmitBtn.innerHTML = `<div class="comment-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;"></div>`;
@@ -340,7 +478,11 @@ class CommentsManager {
                 return;
             }
             // Reset form
-            if (this.DOM.mainTextarea) this.DOM.mainTextarea.value = '';
+            if (this.DOM.mainTextarea) {
+                this.DOM.mainTextarea.value = '';
+                const mainCounter = this.DOM.commentForm?.querySelector('.char-counter');
+                if (mainCounter) mainCounter.textContent = '0 / 2000';
+            }
             this._gifUrl.main = null;
             if (this.DOM.mainGifPreview) this.DOM.mainGifPreview.style.display = 'none';
             if (this.DOM.mainGifImg) this.DOM.mainGifImg.src = '';
@@ -350,7 +492,15 @@ class CommentsManager {
             const list = this.DOM.commentList;
             const empty = list.querySelector('.comment-list-empty');
             if (empty) empty.remove();
-            list.insertBefore(el, list.firstChild);
+            
+            let container = list.querySelector('.comments-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'comments-container';
+                list.innerHTML = '';
+                list.appendChild(container);
+            }
+            container.insertBefore(el, container.firstChild);
 
             // Update count
             const cur = parseInt(this.DOM.commentTotalEl?.textContent || '0');
@@ -402,6 +552,7 @@ class CommentsManager {
                     </div>
                 </div>
                 <div class="reply-form-actions">
+                    <div class="char-counter" id="reply-char-counter-${commentId}">0 / 2000</div>
                     <button type="button" class="comment-gif-btn" id="reply-gif-btn-${commentId}" title="Add GIF">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                         <span>GIF</span>
@@ -422,8 +573,21 @@ class CommentsManager {
         const gifPreview = container.querySelector(`#reply-gif-preview-${commentId}`);
         const gifImg = container.querySelector(`#reply-gif-img-${commentId}`);
         const gifRemove = container.querySelector(`#reply-gif-remove-${commentId}`);
+        const replyCounter = container.querySelector(`#reply-char-counter-${commentId}`);
 
         textarea?.focus();
+
+        textarea?.addEventListener('input', () => {
+            const len = textarea.value.length;
+            if (replyCounter) {
+                replyCounter.textContent = `${len} / 2000`;
+                replyCounter.classList.toggle('warning', len > 1800);
+                replyCounter.classList.toggle('danger', len > 2000);
+            }
+            if (submitBtn) {
+                submitBtn.disabled = len > 2000;
+            }
+        });
 
         gifBtn?.addEventListener('click', (e) => {
             this._gifContext = replyKey;
@@ -446,6 +610,7 @@ class CommentsManager {
             const body = textarea?.value.trim() || '';
             const gifUrl = this._gifUrl[replyKey] || null;
             if (!body && !gifUrl) return;
+            if (body.length > 2000) return;
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = `<div class="comment-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;"></div>`;
@@ -544,6 +709,7 @@ class CommentsManager {
                 </div>
             </div>
             <div class="reply-form-actions">
+                <div class="char-counter" id="edit-char-counter-${comment._id}">${comment.body?.length ?? 0} / 2000</div>
                 <button type="button" class="comment-gif-btn" id="edit-gif-btn-${comment._id}" title="Add GIF">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     <span>GIF</span>
@@ -565,9 +731,22 @@ class CommentsManager {
         const gifPreview = container.querySelector(`#edit-gif-preview-${comment._id}`);
         const gifImg = container.querySelector(`#edit-gif-img-${comment._id}`);
         const gifRemove = container.querySelector(`#edit-gif-remove-${comment._id}`);
+        const editCounter = container.querySelector(`#edit-char-counter-${comment._id}`);
 
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+        textarea?.addEventListener('input', () => {
+            const len = textarea.value.length;
+            if (editCounter) {
+                editCounter.textContent = `${len} / 2000`;
+                editCounter.classList.toggle('warning', len > 1800);
+                editCounter.classList.toggle('danger', len > 2000);
+            }
+            if (submitBtn) {
+                submitBtn.disabled = len > 2000;
+            }
+        });
 
         const closeEdit = () => {
             wrapper.classList.remove('is-editing');
@@ -592,6 +771,7 @@ class CommentsManager {
             const body = textarea.value.trim();
             const gifUrl = this._gifUrl[editKey] || null;
             if (!body && !gifUrl) return;
+            if (body.length > 2000) return;
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = `<div class="comment-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;"></div>`;
@@ -740,7 +920,7 @@ class CommentsManager {
                 }
             }
         } catch (e) {
-            console.error('[Tenor] error:', e);
+            
             this.DOM.gifLoading.style.display = 'none';
             this.DOM.gifGrid.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;padding:12px;grid-column:1/-1;text-align:center">Failed to load GIFs.</p>`;
         }
@@ -828,6 +1008,149 @@ class CommentsManager {
         el.classList.remove('count-pulse');
         void el.offsetWidth; // reflow
         el.classList.add('count-pulse');
+    }
+
+    _openReportModal(commentId) {
+        if (!this.isLoggedIn) {
+            if (typeof openLoginModal === 'function') {
+                openLoginModal();
+            } else {
+                this._showToast('Please sign in to report comments.', 'error');
+            }
+            return;
+        }
+
+        let modal = document.getElementById('comment-report-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'comment-report-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.85);
+                backdrop-filter: blur(5px);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            `;
+            modal.innerHTML = `
+                <div style="background: #121212; padding: 25px; border-radius: 12px; width: 90%; max-width: 440px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.08); transform: scale(0.9); transition: transform 0.2s ease;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            Report Comment
+                        </h3>
+                        <button id="report-modal-close" style="background: none; border: none; color: #a1a1aa; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+
+                    <p style="margin: 0 0 16px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.4;">
+                        Select a reason for reporting this comment. Abuse of the report system may result in action against your account.
+                    </p>
+
+                    <form id="comment-report-form" style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" id="report-comment-id" value="">
+                        
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="color: #cbd5e1; font-size: 0.85rem; font-weight: 600;">Reason</label>
+                            <select id="report-reason" style="background: #1e1e1e; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s;">
+                                <option value="Spam">Spam / Advertising</option>
+                                <option value="Harassment">Harassment / Bullying</option>
+                                <option value="NSFW">Inappropriate / NSFW</option>
+                                <option value="Hate speech">Hate Speech</option>
+                                <option value="Misinformation">Misinformation</option>
+                                <option value="Other">Other / Violation of Terms</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                            <label style="color: #cbd5e1; font-size: 0.85rem; font-weight: 600;">Details (Optional)</label>
+                            <textarea id="report-details" rows="3" placeholder="Provide additional details..." style="background: #1e1e1e; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 0.9rem; resize: none; outline: none; transition: border-color 0.2s;"></textarea>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px;">
+                            <button type="button" id="report-modal-cancel" style="background: none; border: none; color: #a1a1aa; font-weight: 600; font-size: 0.9rem; cursor: pointer; padding: 8px 16px; border-radius: 6px; transition: color 0.2s;">Cancel</button>
+                            <button type="submit" id="report-modal-submit" style="background: #ff4757; color: white; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; padding: 8px 20px; border-radius: 8px; transition: background 0.2s; box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Bind events
+            const closeBtn = modal.querySelector('#report-modal-close');
+            const cancelBtn = modal.querySelector('#report-modal-cancel');
+            const form = modal.querySelector('#comment-report-form');
+            const reasonSelect = modal.querySelector('#report-reason');
+            const detailsTextarea = modal.querySelector('#report-details');
+
+            const closeModal = () => {
+                modal.style.opacity = '0';
+                modal.firstElementChild.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 200);
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const cId = modal.querySelector('#report-comment-id').value;
+                const reason = reasonSelect.value;
+                const details = detailsTextarea.value.trim();
+
+                const submitBtn = modal.querySelector('#report-modal-submit');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+
+                try {
+                    const r = await fetch(`/api/admin/report-comment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            comment_id: cId,
+                            reason: reason,
+                            details: details
+                        })
+                    });
+                    const d = await r.json();
+                    if (!r.ok) {
+                        this._showToast(d.message || 'Failed to submit report.', 'error');
+                        return;
+                    }
+                    this._showToast('Comment reported successfully. Thank you!', 'success');
+                    closeModal();
+                } catch (_) {
+                    this._showToast('Network error, please try again.', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Report';
+                }
+            });
+        }
+
+        // Show modal
+        modal.querySelector('#report-comment-id').value = commentId;
+        modal.querySelector('#report-details').value = '';
+        modal.querySelector('#report-reason').value = 'Spam';
+
+        modal.style.display = 'flex';
+        // force reflow
+        void modal.offsetWidth;
+        modal.style.opacity = '1';
+        modal.firstElementChild.style.transform = 'scale(1)';
     }
 
     _showToast(msg, type = 'info') {

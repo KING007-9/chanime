@@ -349,13 +349,21 @@
 
 /* ── Individual Comment Card ────────────────────────────────── */
 .comment-item {
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.01);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 14px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.02);
     animation: commentFadeIn 0.22s ease;
 }
 
-.comment-item:last-child {
-    border-bottom: none;
+.comment-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 @keyframes commentFadeIn {
@@ -465,6 +473,31 @@
     color: var(--text-secondary);
     background: rgba(255,255,255,0.06);
 }
+
+.comment-report-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 999px;
+    transition: color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.comment-report-btn:hover {
+    color: #ff4757;
+    background: rgba(255, 71, 87, 0.1);
+}
+
+.comment-report-btn svg {
+    flex-shrink: 0;
+}
+
 
 /* ── Replies ────────────────────────────────────────────────── */
 .comment-replies {
@@ -796,4 +829,86 @@
 }
 .reply-item .comment-edit-form {
     margin-left: 42px;
+}
+
+/* ── Staff Badges ───────────────────────────────────────────── */
+.staff-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    user-select: none;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.admin-badge {
+    background: rgba(168, 85, 247, 0.12); /* violet opacity */
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+}
+
+.mod-badge {
+    background: rgba(14, 165, 233, 0.12); /* sky blue opacity */
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.3);
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.15);
+}
+
+/* ── Character Counter ──────────────────────────────────────── */
+.char-counter {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-right: auto; /* push buttons to the right */
+    transition: color 0.2s ease;
+}
+
+.char-counter.warning {
+    color: #f59e0b; /* orange */
+}
+
+.char-counter.danger {
+    color: #ef4444; /* red */
+}
+
+/* ── Load More Button ───────────────────────────────────────── */
+.load-more-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 24px 0;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1.5px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.load-more-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--primary);
+    color: var(--text-primary);
+    box-shadow: 0 0 15px rgba(var(--primary-rgb, 255, 62, 62), 0.12);
+    transform: translateY(-2px);
+}
+
+.load-more-btn:active {
+    transform: translateY(0);
+}
+
+.load-more-btn.loading {
+    cursor: not-allowed;
+    opacity: 0.8;
 }

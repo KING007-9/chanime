@@ -2,7 +2,7 @@
 Watchlist API endpoints — powered entirely by AniList GraphQL.
 No local database storage; every read/write hits AniList directly.
 """
-from flask import Blueprint, request, session, jsonify, current_app
+from flask import Blueprint, request, session, jsonify, current_app, g
 import logging
 import time as _time
 import requests
@@ -121,6 +121,54 @@ def _get_access_token():
     return user.get('anilist_access_token')
 
 
+@watchlist_api_bp.route('/token', methods=['GET'])
+def get_watchlist_token():
+    """Return the authenticated user's AniList access token."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    token = _get_access_token()
+    if not token:
+        return jsonify({'error': 'AniList not connected'}), 400
+    return jsonify({'access_token': token})
+
+
+@watchlist_api_bp.route('/sync_mal', methods=['POST'])
+def sync_mal_endpoint():
+    """Trigger a MAL sync from client side after a mutation."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    access_token = _get_access_token()
+    if not access_token:
+        return jsonify({'success': False, 'message': 'AniList not connected'}), 400
+
+    body = request.get_json() or {}
+    anime_id = body.get('anime_id')
+    action = body.get('action') # 'progress', 'status', 'advanced_update', or 'remove'
+    progress = body.get('progress')
+    status = body.get('status')
+    score = body.get('score')
+    mal_id = body.get('mal_id')
+    
+    if not anime_id:
+        return jsonify({'success': False, 'message': 'Missing anime ID'}), 400
+
+    user_id = session.get('_id')
+    
+    try:
+        # If we have mal_id and action is progress, do standard progress sync
+        if mal_id and action == 'progress' and progress is not None:
+            _try_mal_sync(user_id, mal_id, progress)
+        else:
+            # Sync via AniList ID lookup
+            al_status = STATUS_MAP_TO_ANILIST.get(status) if status else None
+            _sync_to_mal_via_anilist_id(user_id, anime_id, access_token, progress=progress, status=al_status, score=score)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error in sync_mal_endpoint: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 def _anilist_request(access_token, query, variables=None):
     """Fire a GraphQL request against AniList and return the parsed JSON."""
     headers = {
@@ -135,6 +183,10 @@ def _anilist_request(access_token, query, variables=None):
             headers=headers,
             timeout=15,
         )
+        if resp.status_code == 429:
+            retry_after = resp.headers.get('Retry-After', '60')
+            logger.warning(f"AniList rate limited (429). Retry-After: {retry_after}")
+            return {'_rate_limited': True, '_retry_after': int(retry_after) if retry_after.isdigit() else 60}
         if resp.status_code != 200:
             logger.error(f"AniList API error {resp.status_code}: {resp.text[:300]}")
             return None
@@ -166,6 +218,12 @@ def _fetch_viewer_id(access_token):
 
     # Fetch from AniList
     data = _anilist_request(access_token, "query { Viewer { id } }")
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        try:
+            g.anilist_rate_limited = data
+        except Exception:
+            pass
+        return None
     if not data:
         return None
     viewer_id = data.get('data', {}).get('Viewer', {}).get('id')
@@ -246,27 +304,52 @@ query ($userId: Int, $type: MediaType) {
 """
 
 
-@watchlist_api_bp.route('/paginated', methods=['GET'])
+@watchlist_api_bp.route('/paginated', methods=['GET', 'POST'])
 def watchlist_paginated():
-    """Fetch watchlist directly from AniList, apply local pagination/filter."""
+    """Fetch watchlist directly from AniList or process client-side raw data, apply local pagination/filter."""
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
-
-    access_token = _get_access_token()
-    if not access_token:
-        return jsonify({'data': [], 'pagination': {}, 'error': 'AniList not connected'}), 200
 
     page = max(1, int(request.args.get('page', 1)))
     limit = max(1, min(50, int(request.args.get('limit', 20))))
     status_filter = request.args.get('status', '').strip()
 
-    viewer_id = _fetch_viewer_id(access_token)
-    if not viewer_id:
-        return jsonify({'data': [], 'pagination': {}, 'error': 'Could not verify AniList identity'}), 200
+    data = None
+    if request.method == 'POST':
+        body = request.get_json() or {}
+        data = body.get('raw_data')
 
-    data = _anilist_request(access_token, WATCHLIST_QUERY, {'userId': viewer_id, 'type': 'ANIME'})
+    if not data:
+        access_token = _get_access_token()
+        if not access_token:
+            return jsonify({'data': [], 'pagination': {}, 'error': 'AniList not connected'}), 200
+
+        viewer_id = _fetch_viewer_id(access_token)
+        if not viewer_id:
+            if hasattr(g, 'anilist_rate_limited') and g.anilist_rate_limited:
+                retry_after = g.anilist_rate_limited.get('_retry_after', 60)
+                return jsonify({
+                    'data': [],
+                    'pagination': {},
+                    'error': 'rate_limited',
+                    'message': 'AniList is temporarily limiting requests. Please try again shortly.',
+                    'retry_after': retry_after
+                }), 200
+            return jsonify({'data': [], 'pagination': {}, 'error': 'Could not verify AniList identity'}), 200
+
+        data = _anilist_request(access_token, WATCHLIST_QUERY, {'userId': viewer_id, 'type': 'ANIME'})
+
     if not data:
         return jsonify({'data': [], 'pagination': {}, 'error': 'Failed to fetch from AniList'}), 200
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        retry_after = data.get('_retry_after', 60)
+        return jsonify({
+            'data': [],
+            'pagination': {},
+            'error': 'rate_limited',
+            'message': 'AniList is temporarily limiting requests. Please try again shortly.',
+            'retry_after': retry_after
+        }), 200
 
     # Flatten all lists into one array, deduplicating by media ID
     # (AniList custom lists can cause the same anime to appear in multiple lists)
@@ -330,43 +413,50 @@ def watchlist_paginated():
     })
 
 
-@watchlist_api_bp.route('/stats', methods=['GET'])
+@watchlist_api_bp.route('/stats', methods=['GET', 'POST'])
 def watchlist_stats():
-    """Return stats from AniList Viewer query."""
+    """Return stats from AniList Viewer query or process client-side raw data."""
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
-    access_token = _get_access_token()
-    if not access_token:
-        return jsonify({}), 200
+    data = None
+    if request.method == 'POST':
+        body = request.get_json() or {}
+        data = body.get('raw_data')
 
-    viewer_id = _fetch_viewer_id(access_token)
-    if not viewer_id:
-        return jsonify({}), 200
+    if not data:
+        access_token = _get_access_token()
+        if not access_token:
+            return jsonify({}), 200
 
-    # Fetch both stats and list counts
-    query = """
-    query ($userId: Int) {
-      User(id: $userId) {
-        statistics {
-          anime {
-            count
-            meanScore
-            minutesWatched
-            episodesWatched
+        viewer_id = _fetch_viewer_id(access_token)
+        if not viewer_id:
+            return jsonify({}), 200
+
+        # Fetch both stats and list counts
+        query = """
+        query ($userId: Int) {
+          User(id: $userId) {
+            statistics {
+              anime {
+                count
+                meanScore
+                minutesWatched
+                episodesWatched
+              }
+            }
+          }
+          MediaListCollection(userId: $userId, type: ANIME) {
+            lists {
+              name
+              status
+              entries { id }
+            }
           }
         }
-      }
-      MediaListCollection(userId: $userId, type: ANIME) {
-        lists {
-          name
-          status
-          entries { id }
-        }
-      }
-    }
-    """
-    data = _anilist_request(access_token, query, {'userId': viewer_id})
+        """
+        data = _anilist_request(access_token, query, {'userId': viewer_id})
+
     if not data:
         return jsonify({}), 200
 
@@ -445,6 +535,8 @@ def add_to_watchlist_route():
     }
 
     data = _anilist_request(access_token, SAVE_ENTRY_MUTATION, variables)
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
     if data and data.get('data', {}).get('SaveMediaListEntry'):
         _sync_to_mal_via_anilist_id(session.get('_id'), anime_id, access_token, progress=int(body.get('watched_episodes', 0)), status=al_status)
         return jsonify({'success': True, 'message': f'Added to {status} list on AniList!'})
@@ -504,6 +596,8 @@ def update_watchlist():
         return jsonify({'success': False, 'message': 'Invalid action'}), 400
 
     data = _anilist_request(access_token, SAVE_ENTRY_MUTATION, variables)
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
     if data and data.get('data', {}).get('SaveMediaListEntry'):
         # ── MAL sync ──
         user_id = session.get('_id')
@@ -569,6 +663,8 @@ def advanced_update():
         variables['completedAt'] = completed
 
     data = _anilist_request(access_token, SAVE_ENTRY_MUTATION, variables)
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
     if data and data.get('data', {}).get('SaveMediaListEntry'):
         _sync_to_mal_via_anilist_id(
             session.get('_id'), anime_id, access_token, 
@@ -606,6 +702,8 @@ def remove_from_watchlist_route():
     }
     """
     find_data = _anilist_request(access_token, find_query, {'userId': viewer_id, 'mediaId': int(anime_id)})
+    if isinstance(find_data, dict) and find_data.get('_rate_limited'):
+        return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
     if not find_data:
         return jsonify({'success': False, 'message': 'Could not find entry on AniList'}), 404
 
@@ -614,6 +712,8 @@ def remove_from_watchlist_route():
         return jsonify({'success': False, 'message': 'Entry not found on AniList'}), 404
 
     del_data = _anilist_request(access_token, DELETE_ENTRY_MUTATION, {'id': entry_id})
+    if isinstance(del_data, dict) and del_data.get('_rate_limited'):
+        return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
     if del_data and del_data.get('data', {}).get('DeleteMediaListEntry', {}).get('deleted'):
         return jsonify({'success': True, 'message': 'Removed from AniList!'})
     return jsonify({'success': False, 'message': 'Failed to delete from AniList'}), 500
@@ -683,6 +783,8 @@ def save_progress():
     if is_completed:
         variables = {'mediaId': int(anime_id), 'progress': ep}
         data = _anilist_request(access_token, SAVE_ENTRY_MUTATION, variables)
+        if isinstance(data, dict) and data.get('_rate_limited'):
+            return jsonify({'success': False, 'message': 'AniList is rate limiting requests. Please try again in a minute.'}), 429
         if data and data.get('data', {}).get('SaveMediaListEntry'):
             # ── MAL sync ──
             if body.get('sync_mal') and body.get('mal_id'):
@@ -768,6 +870,8 @@ def get_watchlist_entry():
     }
     """
     data = _anilist_request(access_token, query, {'userId': viewer_id, 'mediaId': int(anime_id)})
+    if isinstance(data, dict) and data.get('_rate_limited'):
+        return jsonify({'error': 'rate_limited', 'message': 'AniList is temporarily limiting requests. Please try again shortly.'}), 429
     if not data:
         return jsonify({'error': 'Not found or API error'}), 404
 

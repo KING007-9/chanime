@@ -124,7 +124,11 @@
             {% if user.mal_authenticated %}
             <div class="anilist-card" style="margin-bottom: var(--space-md);">
                 <div class="anilist-card-avatar" style="background: transparent; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; padding: 0;">
+                    {% if user.mal_avatar or session.get('mal_avatar') %}
+                    <img src="{{ user.mal_avatar or session.get('mal_avatar') }}" alt="MAL Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
                     <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/MyAnimeList_Logo.png" alt="MAL" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% endif %}
                 </div>
                 <div class="anilist-card-info">
                     <div class="anilist-card-title">
@@ -187,14 +191,6 @@
                     <span class="settings-label-desc">Automatically play the next episode</span>
                 </div>
                 <div class="toggle" id="autoplay-toggle" data-setting="autoplay"></div>
-            </div>
-
-            <div class="settings-row">
-                <div class="settings-label">
-                    <span class="settings-label-text">Skip Intro/Outro</span>
-                    <span class="settings-label-desc">Automatically skip intro and outro when available</span>
-                </div>
-                <div class="toggle" id="skip-toggle" data-setting="skip_intro"></div>
             </div>
 
             <div class="settings-row">
@@ -276,11 +272,11 @@
 
             <div class="settings-row">
                 <div class="settings-label">
-                    <span class="settings-label-text">Clear Watch History</span>
-                    <span class="settings-label-desc">Remove all watch progress data</span>
+                    <span class="settings-label-text">Delete Account</span>
+                    <span class="settings-label-desc">Completely and permanently delete your YumeZone account and all associated data</span>
                 </div>
-                <button class="btn btn-secondary" id="clear-history" style="color: var(--error);">
-                    Clear
+                <button class="btn btn-secondary" id="delete-account-btn" style="color: var(--error); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);">
+                    Delete Account
                 </button>
             </div>
         </div>

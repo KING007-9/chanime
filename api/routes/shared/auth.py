@@ -74,6 +74,13 @@ def anilist_callback():
 
     current_app.logger.info(f"AniList callback received - code: {bool(code)}, state: {bool(state)}, error: {error}")
 
+    # Validate OAuth state to prevent CSRF attacks
+    stored_state = session.pop('oauth_state', None)
+    if not state or not stored_state or state != stored_state:
+        current_app.logger.warning("OAuth state mismatch - potential CSRF attempt detected")
+        flash('Authentication failed: Invalid state session. Please try again.', 'error')
+        return redirect(url_for('home_routes.home'))
+
     # Check for errors
     if error:
         current_app.logger.error(f"AniList OAuth error: {error}")
@@ -189,7 +196,9 @@ def anilist_callback():
                 # Create new user
                 current_app.logger.info(f"Creating new user from AniList: {user_info['name']}")
                 user_id = create_anilist_user(user_info, access_token)
-                username = user_info['name']
+                # Fetch actual created user to get the sanitized unique username
+                created_user = get_user_by_id(user_id)
+                username = created_user['username'] if created_user else user_info['name'].replace(' ', '_')
 
             # Set session
             session.clear()
@@ -201,8 +210,10 @@ def anilist_callback():
             # Sync password_version so validate_session_version doesn't clear the session
             if existing_anilist_user:
                 session['password_version'] = existing_anilist_user.get('password_version', 0)
+                session['role'] = existing_anilist_user.get('role', 'user')
             else:
                 session['password_version'] = 0
+                session['role'] = 'user'
             session.permanent = True
 
             current_app.logger.info(f"User {username} (ID: {user_id}) logged in via AniList successfully")
@@ -368,6 +379,13 @@ def mal_callback():
         flash('MyAnimeList login failed. Please try again.', 'error')
         return redirect(url_for('catalog_routes.settings'))
 
+    # Validate MAL OAuth state to prevent CSRF
+    stored_state = session.pop('mal_oauth_state', None)
+    if not state or not stored_state or state != stored_state:
+        logger.warning("MAL OAuth state mismatch - potential CSRF attempt")
+        flash('MyAnimeList connection failed: Invalid state parameter.', 'error')
+        return redirect(url_for('catalog_routes.settings'))
+
     if not code:
         flash('No authorization code received from MyAnimeList.', 'error')
         return redirect(url_for('catalog_routes.settings'))
@@ -408,6 +426,7 @@ def mal_callback():
         if result:
             session['mal_authenticated'] = True
             session['mal_username'] = mal_user.get('name')
+            session['mal_avatar'] = mal_user.get('picture')
             flash(f'MyAnimeList account ({mal_user.get("name")}) connected!', 'success')
         else:
             flash('Failed to save MyAnimeList connection.', 'error')
@@ -434,6 +453,7 @@ def disconnect_mal_account():
         if result:
             session.pop('mal_authenticated', None)
             session.pop('mal_username', None)
+            session.pop('mal_avatar', None)
             return jsonify({'success': True, 'message': 'MyAnimeList disconnected successfully.'})
         return jsonify({'success': False, 'message': 'Failed to disconnect.'}), 500
 

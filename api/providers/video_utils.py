@@ -55,8 +55,11 @@ def _is_already_proxied(url: str) -> bool:
     if not url:
         return False
 
+    worker_prefix = f"{WORKER_BASE}/p/" if WORKER_BASE else None
+
     return (
-        url.startswith(WORKER_BASE + "/p/")
+        (worker_prefix is not None and url.startswith(worker_prefix))
+        or re.search(r"https://[^/]*workers\.dev/p/", url) is not None
         or url.startswith(CDN_PROXY_URL)
     )
 
@@ -156,6 +159,9 @@ def _route_proxy(
         return url
 
     provider_norm = _normalize_provider(provider)
+
+    if provider_norm == "zenith":
+        return url
 
     is_worker_provider = (
         provider_norm in _WORKER_PROVIDERS
@@ -378,14 +384,26 @@ def proxy_video_sources(
     # ── hls_sources ──────────────────────────────────────────────────────────
     hls = data.get("hls_sources")
     if isinstance(hls, list):
-        for s in hls:
+        for idx, s in enumerate(hls):
             if isinstance(s, dict):
                 for k in ("file", "url"):
                     if s.get(k):
                         s[k] = _pick(s[k])
-        # Rebuild video_link if missing
-        if hls and not data.get("video_link"):
-            data["video_link"] = hls[0].get("url") or hls[0].get("file")
+            elif isinstance(s, str):
+                hls[idx] = _pick(s)
+        # Keep the canonical HLS link aligned with the proxied source list.
+        if hls and data.get("source_type") == "hls":
+            first_hls = hls[0]
+            if isinstance(first_hls, dict):
+                data["video_link"] = first_hls.get("url") or first_hls.get("file") or data.get("video_link")
+            elif isinstance(first_hls, str):
+                data["video_link"] = _pick(first_hls)
+        elif hls and not data.get("video_link"):
+            first_hls = hls[0]
+            if isinstance(first_hls, dict):
+                data["video_link"] = first_hls.get("url") or first_hls.get("file")
+            elif isinstance(first_hls, str):
+                data["video_link"] = _pick(first_hls)
 
     # ── tracks / subtitle_tracks ───────────────────────────────────────────
     tracks = data.get("tracks") or data.get("subtitle_tracks")

@@ -39,7 +39,7 @@
             const data = await resp.json();
             renderThemes(data);
         } catch (e) {
-            console.error('Failed to fetch anime themes:', e);
+            
             showEmpty();
         }
     }
