@@ -194,7 +194,7 @@
 }
 
 .manga-card-badges .badge-source {
-    background: rgba(255, 62, 62, 0.8);
+    background: rgba(124, 16, 173, 0.8);
     color: #fff;
 }
 
@@ -803,13 +803,13 @@
 }
 
 .btn-fav-active {
-    color: #ff3e3e !important;
+    color: #6d05b3bb !important;
     border-color: rgba(255, 62, 62, 0.3) !important;
     background: rgba(255, 62, 62, 0.1) !important;
 }
 
 .btn-fav-active svg {
-    fill: #ff3e3e;
+    fill: #6d05b3bb;
     transform: scale(1.08);
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }

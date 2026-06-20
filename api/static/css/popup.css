@@ -127,7 +127,7 @@
 }
 
 .welcome-icon.fix-icon {
-    color: #ff3e3e;
+    color: #6d05b3bb;
     filter: drop-shadow(0 0 8px rgba(255, 62, 62, 0.4));
 }
 
@@ -143,7 +143,7 @@
 }
 
 .welcome-popup-card-title.update {
-    background: linear-gradient(to right, #ef4444, #ff3e3e);
+    background: linear-gradient(to right, #ef4444, #6d05b3bb);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }

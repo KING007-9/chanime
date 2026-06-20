@@ -336,7 +336,7 @@
     }
 
     .wl-input:focus {
-        border-color: var(--primary-color, #ff3e3e);
+        border-color: var(--primary-color, #6d05b3bb);
         background: rgba(255, 255, 255, 0.08);
     }
 
@@ -401,7 +401,7 @@
     }
 
     .wl-btn-save {
-        background: var(--primary-color, #ff3e3e);
+        background: var(--primary-color, #6d05b3bb);
         border: none;
         color: white;
         padding: 10px 24px;

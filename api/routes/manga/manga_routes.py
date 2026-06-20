@@ -13,6 +13,7 @@ manga_routes_bp = Blueprint('manga_routes', __name__)
 
 
 @manga_routes_bp.route('/manga', methods=['GET'])
+@manga_routes_bp.route('/manga.html', methods=['GET'], strict_slashes=False)
 def manga_home():
     """Manga home page with trending/popular/latest manga."""
     source = request.args.get('source', 'atsumaru')

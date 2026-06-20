@@ -27,11 +27,11 @@
 
     --success: #22c55e;
     --warning: #f59e0b;
-    --error: #ef4444;
+    --error: #6d05b3bb;
     --info: #3b82f6;
 
     /* Badge Colors */
-    --badge-sub: #ff3e3e;
+    --badge-sub: #6d05b3bb;
     --badge-dub: #3b82f6;
 
     /* Spacing */
@@ -611,22 +611,22 @@ h6 {
     transform: translateY(-50%);
     width: 3px;
     height: 0;
-    background: #ff3e3e;
+    background: #6d05b3bb;
     border-radius: 0 4px 4px 0;
     transition: height 0.2s ease;
 }
 
 .sidebar-link:hover {
-    color: #ff3e3e;
+    color: #6d05b3bb;
     background: rgba(255, 62, 62, 0.05);
 }
 
 .sidebar-link:hover svg {
-    color: #ff3e3e;
+    color: #6d05b3bb;
 }
 
 .sidebar-link.active {
-    color: #ff3e3e;
+    color: #6d05b3bb;
     background: rgba(255, 62, 62, 0.1);
     font-weight: 600;
 }
@@ -636,7 +636,7 @@ h6 {
 }
 
 .sidebar-link.active svg {
-    color: #ff3e3e;
+    color: #6d05b3bb;
 }
 
 .sidebar-link svg {
@@ -830,9 +830,9 @@ h6 {
 }
 
 .btn-primary:hover {
-    background: #e63535;
+    background: #6d05b3bb;
     transform: translateY(-1.5px);
-    box-shadow: 0 0 20px rgba(255, 62, 62, 0.4);
+    box-shadow: 0 0 20px rgba(100, 0, 187, 0.4);
 }
 
 .btn-secondary {
@@ -983,9 +983,9 @@ h6 {
 }
 
 .tab-btn.active {
-    background: rgba(255, 62, 62, 0.15);
-    border-color: rgba(255, 62, 62, 0.3);
-    color: #ff3e3e;
+    background: rgb(120, 10, 209)
+    border-color: #6d05b3bb;
+    color: #6d05b3bb;
 }
 
 .tab-content {
@@ -1299,7 +1299,7 @@ h6 {
 }
 
 .history-remove-btn:hover {
-    background: #ef4444;
+    background: #6d05b3bb;
     transform: scale(1.1) !important;
 }
 
@@ -2385,7 +2385,7 @@ h6 {
 .stat-card-value {
     font-size: 1.75rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #ef4444, #ff3e3e);
+    background: linear-gradient(135deg, #6d05b3bb, #6d05b3bb);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -2591,7 +2591,7 @@ h6 {
 
 .sync-bar {
     height: 100%;
-    background: linear-gradient(90deg, #ef4444, #ff3e3e);
+    background: linear-gradient(90deg, #6d05b3bb, #6d05b3bb);
     border-radius: 2px;
     transition: width 0.3s ease;
 }

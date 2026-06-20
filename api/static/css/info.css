@@ -543,7 +543,7 @@
     }
 
     .wl-input:focus {
-        border-color: var(--primary-color, #ff3e3e);
+        border-color: var(--primary-color, #6d05b3bb);
         background: rgba(255, 255, 255, 0.08);
     }
 
@@ -608,7 +608,7 @@
     }
 
     .wl-btn-save {
-        background: var(--primary-color, #ff3e3e);
+        background: var(--primary-color, #6d05b3bb);
         border: none;
         color: white;
         padding: 10px 24px;
@@ -759,7 +759,7 @@
     }
 
     .music-group-badge.op {
-        background: linear-gradient(135deg, #ef4444, #ff3e3e);
+        background: linear-gradient(135deg, #ef4444, #6d05b3bb);
     }
 
     .music-group-badge.ed {
@@ -820,7 +820,7 @@
     }
 
     .music-sequence-badge:not(.has-image).op {
-        background: linear-gradient(135deg, #ef4444, #ff3e3e);
+        background: linear-gradient(135deg, #ef4444, #6d05b3bb);
     }
 
     .music-sequence-badge:not(.has-image).ed {
@@ -859,7 +859,7 @@
     }
 
     .music-badge-num.op {
-        background: linear-gradient(135deg, #ef4444, #ff3e3e);
+        background: linear-gradient(135deg, #ef4444, #6d05b3bb);
     }
 
     .music-badge-num.ed {

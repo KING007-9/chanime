@@ -13,6 +13,12 @@ def index():
     return render_template("shared/landing.html", info="Welcome")
 
 
+@home_routes_bp.route("/index.html", methods=["GET"], strict_slashes=False)
+def index_html():
+    """Compatibility alias for older static-style links."""
+    return home()
+
+
 @home_routes_bp.route("/home", methods=["GET"])
 def home():
     """Display home page with anime sections"""
@@ -56,6 +62,13 @@ def home():
             error=f"Error fetching home page data: {e}",
             info=info
         )
+
+
+@home_routes_bp.route("/music", methods=["GET"], strict_slashes=False)
+@home_routes_bp.route("/music.html", methods=["GET"], strict_slashes=False)
+def music():
+    """Display the music page."""
+    return render_template("shared/music.html", info="Music")
 
 
 @home_routes_bp.route("/history", methods=["GET"])

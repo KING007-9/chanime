@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Music · Kurovexa</title>
+    <meta name="description" content="Listen to anime openings, endings and OSTs. Powered by AnimeThemes.">
+    <meta name="theme-color" content="#07070f">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://graphql.anilist.co" crossorigin>
+    <link rel="dns-prefetch" href="https://graphql.anilist.co">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1002">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}?v=45">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logos/logo-icon.png') }}?v=3">
+</head>
+<body class="music-body" data-no-floatnav="1">
+
+    <header id="header">
+        <div class="container">
+            <a href="/" class="logo">
+                <div class="logo-wordmark">
+                    <span class="l">K</span><span class="l">U</span><span class="l">R</span><span class="l">O</span><span class="l">V</span><span class="l" style="transform: scaleX(-1); display: inline-block;">E</span><span class="l">X</span><span class="l">A</span>
+                </div>
+            </a>
+
+            <nav id="main-nav">
+                <a href="index.html">Home</a>
+                <a href="browse.html">Browse</a>
+                <a href="schedule.html">Schedule</a>
+                <a href="manga.html">Manga</a>
+                <a href="music.html" class="active">Music</a>
+            </nav>
+
+            <div class="auth-nav" id="auth-nav"></div>
+
+            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+
+        <div class="mobile-nav" id="mobile-nav">
+            <div id="mobile-auth-nav" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 12px; display: flex; flex-direction: column;"></div>
+            <nav class="mobile-nav-links">
+                <a href="index.html">Home</a>
+                <a href="browse.html">Browse</a>
+                <a href="schedule.html">Schedule</a>
+                <a href="manga.html">Manga</a>
+                <a href="music.html" class="active">Music</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="music-app" id="music-app">
+        <aside class="music-sidebar" id="music-sidebar">
+            <div class="ms-block">
+                <div class="ms-block-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></svg>
+                    <span>Browse</span>
+                </div>
+                <a class="ms-link" data-route="#/" href="#/">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M12 2a14.5 14.5 0 0 1 0 20"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                    <span>Discover</span>
+                </a>
+                <a class="ms-link" data-route="#/recent" href="#/recent">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>Newest Themes</span>
+                </a>
+                <a class="ms-link" data-route="#/artists" href="#/artists">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Artists</span>
+                </a>
+            </div>
+
+            <div class="ms-block">
+                <div class="ms-block-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    <span>Library</span>
+                </div>
+                <a class="ms-link" data-route="#/liked" href="#/liked">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    <span>Liked Songs</span>
+                </a>
+                <a class="ms-link" data-route="#/history" href="#/history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    <span>Recently Played</span>
+                </a>
+            </div>
+
+            <div class="ms-block">
+                <div class="ms-block-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span>By Year</span>
+                </div>
+                <div class="ms-year-grid" id="ms-year-grid"></div>
+            </div>
+        </aside>
+
+        <section class="music-main" id="music-main">
+            <div class="ms-topbar">
+                <button class="ms-nav-btn" id="ms-back" aria-label="Back" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="ms-nav-btn" id="ms-fwd" aria-label="Forward" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+
+                <div class="ms-search">
+                    <span class="ms-search-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </span>
+                    <input id="ms-search-input" type="text" placeholder="What do you want to listen to?" autocomplete="off">
+                    <button class="ms-search-clear" id="ms-search-clear" aria-label="Clear" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                <button class="ms-sidebar-toggle" id="ms-sidebar-toggle" aria-label="Library">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="ms-view" id="ms-view"></div>
+        </section>
+    </main>
+
+    <div class="ms-sidebar-backdrop" id="ms-sidebar-backdrop"></div>
+
+    <div class="player-bar" id="player-bar" data-empty="1">
+        <div class="pb-track">
+            <button class="pb-cover-btn" id="pb-expand" aria-label="Expand player">
+                <img class="pb-cover" id="pb-cover" alt="" referrerpolicy="no-referrer">
+                <span class="pb-cover-fallback" id="pb-cover-fallback" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                </span>
+                <span class="pb-cover-overlay">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </span>
+            </button>
+            <div class="pb-meta">
+                <button class="pb-title" id="pb-title" type="button">Pick a song to start</button>
+                <a class="pb-artist" id="pb-artist" href="#">—</a>
+            </div>
+            <button class="pb-like" id="pb-like" aria-label="Like" title="Like">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="pb-dismiss" id="pb-dismiss" aria-label="Hide player" title="Hide player">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <div class="pb-center">
+            <div class="pb-controls">
+                <button class="pb-btn" id="pb-shuffle" aria-label="Shuffle" title="Shuffle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                </button>
+                <button class="pb-btn" id="pb-prev" aria-label="Previous" title="Previous">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <button class="pb-play" id="pb-play" aria-label="Play" title="Play">
+                    <svg id="pb-play-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <button class="pb-btn" id="pb-next" aria-label="Next" title="Next">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6z"/></svg>
+                </button>
+                <button class="pb-btn" id="pb-loop" aria-label="Loop" title="Loop">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </button>
+            </div>
+            <div class="pb-progress">
+                <span class="pb-time" id="pb-cur">0:00</span>
+                <div class="pb-bar" id="pb-seek">
+                    <div class="pb-bar-fill" id="pb-seek-fill"></div>
+                    <div class="pb-bar-knob" id="pb-seek-knob"></div>
+                </div>
+                <span class="pb-time" id="pb-dur">0:00</span>
+            </div>
+        </div>
+
+        <div class="pb-right">
+            <button class="pb-btn pb-mobile-play" id="pb-play-mobile" aria-label="Play">
+                <svg id="pb-play-mobile-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button class="pb-btn" id="pb-mute" aria-label="Mute" title="Mute">
+                <svg id="pb-vol-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </button>
+            <div class="pb-vol" id="pb-vol">
+                <div class="pb-bar-fill" id="pb-vol-fill"></div>
+                <div class="pb-bar-knob" id="pb-vol-knob"></div>
+            </div>
+        </div>
+
+        <audio id="pb-audio" preload="metadata"></audio>
+    </div>
+
+    <div class="np-modal" id="np-modal" hidden>
+        <div class="np-bg" id="np-bg"></div>
+        <div class="np-inner">
+            <div class="np-header">
+                <button class="np-icon-btn np-back-btn" id="np-close" aria-label="Back" title="Back">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    <span>Back</span>
+                </button>
+                <div class="np-source">
+                    <div class="np-eyebrow">Playing from</div>
+                    <a class="np-source-name" id="np-source-name" href="#">—</a>
+                </div>
+                <div style="width:36px"></div>
+            </div>
+
+            <div class="np-stage" id="np-stage">
+                <span class="np-cover-fallback" id="np-cover-fallback" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                </span>
+                <img class="np-cover" id="np-cover" alt="" referrerpolicy="no-referrer">
+                <video class="np-video" id="np-video" playsinline preload="metadata" hidden></video>
+                <div class="np-loading" id="np-loading" hidden>
+                    <div class="np-spinner"></div>
+                </div>
+                <div class="np-lyrics" id="np-lyrics" hidden>
+                    <div class="np-lyrics-inner">
+                        <div class="np-lyrics-head">
+                            <h3>Lyrics</h3>
+                            <button class="np-panel-close" id="np-lyrics-close" aria-label="Close lyrics">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <p class="np-lyrics-body" id="np-lyrics-body">Pick a song to load lyrics.</p>
+                        <div class="np-lyrics-meta" id="np-lyrics-meta"></div>
+                    </div>
+                </div>
+                <div class="np-queue" id="np-queue" hidden>
+                    <div class="np-queue-head">
+                        <h3>Queue</h3>
+                        <span id="np-queue-count">0 tracks</span>
+                        <button class="np-panel-close" id="np-queue-close" aria-label="Close queue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="np-queue-list" id="np-queue-list"></div>
+                </div>
+            </div>
+
+            <div class="np-info">
+                <div class="np-info-text">
+                    <a class="np-title" id="np-title" href="#">—</a>
+                    <a class="np-artist" id="np-artist" href="#">—</a>
+                </div>
+                <button class="np-like" id="np-like" aria-label="Like">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
+            </div>
+
+            <div class="np-progress">
+                <div class="np-bar" id="np-seek">
+                    <div class="np-bar-fill" id="np-seek-fill"></div>
+                    <div class="np-bar-knob" id="np-seek-knob"></div>
+                </div>
+                <div class="np-times">
+                    <span id="np-cur">0:00</span>
+                    <span id="np-dur">0:00</span>
+                </div>
+            </div>
+
+            <div class="np-controls">
+                <button class="np-ctl" id="np-shuffle" aria-label="Shuffle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                </button>
+                <button class="np-ctl" id="np-prev" aria-label="Previous">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <button class="np-play-big" id="np-play" aria-label="Play">
+                    <svg id="np-play-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <button class="np-ctl" id="np-next" aria-label="Next">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6z"/></svg>
+                </button>
+                <button class="np-ctl" id="np-loop" aria-label="Loop">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </button>
+            </div>
+
+            <div class="np-tools">
+                <button class="np-tool" id="np-video-btn" aria-label="Toggle video">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                    <span>Video</span>
+                </button>
+                <button class="np-tool" id="np-lyrics-btn" aria-label="Toggle lyrics">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h12M4 14h16M4 18h8"/></svg>
+                    <span>Lyrics</span>
+                </button>
+                <button class="np-tool" id="np-queue-btn" aria-label="Toggle queue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    <span>Queue</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/music.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/core.js') }}"></script>
+
+</body>
+
+</html>

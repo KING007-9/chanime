@@ -761,8 +761,7 @@ function playEmbed(url) {
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     var isAdHeavy = /megaplay\.buzz|vidwish/i.test(url);
     var sb = isAdHeavy
-        ? 'sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"'
-        : 'sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"';
+       
     playerArea.innerHTML =
         '<div style="position:relative;width:100%;height:100%;background:#000">'
         + '<iframe src="' + url + '" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" '
